@@ -25,7 +25,10 @@ replay_pid*
 
 .vscode/
 /dist/
-/.javafx/
+/com/
+/com/sun/
+/com/sun/*
+/javafx/
 /META-INF/
 /MyRuntime/
 /bin/
