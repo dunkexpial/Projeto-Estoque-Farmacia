@@ -1,0 +1,98 @@
+Siga o passo a passo que não tem erro!! CRIE AS PASTAS EXATAMENTE ONDE ESPECIFIQUEI
+
+1° Instale todos os arquivos que está na pasta zipada que mandei.
+
+2° Confira se o JDK de vocês são a mesma versão que a minha.
+
+3° Se você já tem o JAVA_HOME ignore esse passo 3. Caso você não tenha, você tera que acessar o edit the system environment variables.
+
+3.1° Você tera que adicionar uma nova variável. Nomeie essa variável de JAVA_HOME e especificar o caminho até a versão do JDK.
+
+3.2° O Caminho será o seguinte -> C:\Program Files\Java\jdk-17
+
+3.3° É OBRIGATÓRIO que você COLOQUE as pastas do javafx sdk e jmods dentro da pasta Java. A pasta Java tera 3 pastas JMODS | SDK | JDK.
+
+4° O terminal padrão para executar os comandos é pelo cmd. Portanto pressione as seguintes teclas no VSCODE.
+
+4.1° Ctrl + Shift + p 
+
+4.2° Digite: Terminal Select Default Profile.
+
+4.3° Selecione a opção Command Prompt.
+
+5° Preciso que vá na parte esquerda superior da tela e vá na opção Run.
+
+5.1° Selecione a opção Add Configuration... | Depois selecione Java [SE APARECER, TEM VEZES QUE NÃO APARECE. ESPERE ALGUNS SEGUNDOS]
+
+5.2° Feito isso o vscode irá criar o arquivo launch.json na pasta .vscode | O ARQUIVO DEVE CONTER EXATAMENTE ISSO. Exceto pelo nome do projeto. Você tera que substituir. Antes de colar copie ele e substitua.
+
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "java",
+      "name": "Current File",
+      "request": "launch",
+      "mainClass": "${file}"
+    },
+    {
+      "type": "java",
+      "name": "App",
+      "request": "launch",
+      "mainClass": "App",
+      "projectName": "Cole-O-Nome-Do-Seu-Projeto-Aqui-Dentro-Das-Aspas",
+      "vmArgs": "--module-path \"C:/Program Files/Java/javafx-sdk-21.0.8/lib\" --add-modules javafx.controls,javafx.fxml"
+    }
+  ]
+}
+
+5.3° Provavelmente você terá um arquvio chamado settings.json | Se não existe crie ele e copie esse pedaço de código. Isso na pasta .vscode | O arquvio deve conter exatamente este código. Caso contrário ele vai dar erro no App.java
+
+{
+  "java.project.sourcePaths": ["src"],
+  "java.project.outputPath": "bin",
+  "java.project.referencedLibraries": [
+    "C:/Program Files/Java/javafx-sdk-21.0.8/lib**/*.jar"
+  ]
+}
+
+
+6° Ao seguir esses passos você deve ser capaz de rodar a aplicação. Pressione F5. Caso deu algum erro que está faltando algo no javafx vá na barra esquerda do VSCODE e selecione a opção de Run and Debug ou Ctrl + Shift + D. Na parte de cima onde tá o play verde ao lado deve ter um placheolder dizendo "Current File", selecione a opção App e aperte F5 ou no própio Play verde.
+
+7° Parabéns você chegou na metade das instruções. Agora na sua pasta raiz do projeto crie uma pasta chamada javafx e dentro da pasta javafx crie a pasta lib.
+
+7.1° Agora no File Explore vá na pasta C:\Program Files\Java\javafx-sdk\lib
+
+7.2° Copie todos os arquivos e cole na pasta lib que está na pasta javafx do VSCODE
+
+8° Voltando para aquela pasta zip de downloads quero que baixe aquele wix314.exe. Ele vai abrir uma janela, faça o download e feche a aplicação.
+
+9° Agora você vai criar o executável. Na barra vertical esqueda do VSCODE selecione o explorer, ou Ctrl + Shift + E.
+
+9.1° Lá em baixo você vai ver o JAVA PROJECTS, selecione ele. Aperte na flecha |---> Ele vai criar o Jar da aplicação.
+
+9.2° Voltando ao File Explorer desse projeto preciso que extraia o Jar do projeto, extraia lá mesmo.
+
+9.3° No própio VSCODE você verá o META-MF. Selecione o MANIFEST.MF.
+
+9.4° Copie o nome da Main Class. Provavelmente vai ser [APP]. Se não for, copie.
+
+10° Abra o cmd, no propio terminal do VSCODE. Copie e cole o seguinte trecho. Ele vai criar uma pasta chama MyRuntime. Você pode receber um aviso que é muito grande ou algo do tipo, selecione a opção colar em uma unica linha. Se não aparecer esse aviso, ignore essa minha observação. FAÇA ISSO APENAS UMA VEZ. SÓ REPITA ISSO SE VOCÊ TIVER DELETADO A PASTA MYRUNTIME.
+
+"C:\Program Files\Java\jdk-17\bin\jlink" ^--module-path "C:\Program Files\Java\jdk-17\jmods;C:\Program Files\Java\javafx-jmods-21.0.8" ^--add-modules java.base,java.desktop,javafx.controls,javafx.fxml ^--output MyRuntime
+
+11° Com a pasta MyRuntime feita, copie e cole o seguinte trecho. Pode levar um tempo para finalizar a a criação. Esse comando faça apenas se for fazer o executável. Delete o existente antes de rodar o comando.
+
+"C:\Program Files\Java\jdk-17\bin\jpackage" ^--name "MeuApp" ^--input . ^--main-jar Pharmacy.jar ^--main-class App ^--type exe ^--dest ./dist ^--runtime-image MyRuntime ^--win-shortcut ^--win-menu
+
+12° Feito isso sem nenhum erro no caminho, ele vai criar o executável numa pasta chama dist. Execute como admin e vai instalar o projeto.
+
+13° Feito a instalação o icone deve aparecer na área desktop, se não aparecer vá em C:\Program Files\MeuApp e execute a aplicação.
+
+FIM DO TUTORIAL
+
+
+
+
+
+

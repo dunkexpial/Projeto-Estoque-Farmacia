@@ -22,9 +22,3 @@ public class App extends Application {
 }
 
 
-//Esse não precisa, O Runtime já foi criado
-// "C:\Program Files\Java\jdk-17\bin\jlink" ^--module-path "C:\Program Files\Java\jdk-17\jmods;C:\Program Files\Java\javafx-jmods-21.0.8" ^--add-modules java.base,java.desktop,javafx.controls,javafx.fxml ^--output MyRuntime
-
-
-//Esse cria o executável só copiar e colar no cmd
-// "C:\Program Files\Java\jdk-17\bin\jpackage" ^--name "MeuApp" ^--input . ^--main-jar Pharmacy.jar ^--main-class App ^--type exe ^--dest ./dist ^--runtime-image MyRuntime ^--win-shortcut ^--win-menu

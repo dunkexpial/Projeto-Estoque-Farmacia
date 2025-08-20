@@ -23,16 +23,16 @@
 hs_err_pid*
 replay_pid*
 
-# .vscode/
-# /dist/
-# /com/
-# /com/sun/
-# /com/sun/*
-# /javafx/
-# /META-INF/
-# /MyRuntime/
-# /bin/
-# /target/
-# /build/
-# /out/
+.vscode/
+/dist/
+/com/
+/com/sun/
+/com/sun/*
+/javafx/
+/META-INF/
+/MyRuntime/
+/bin/
+/target/
+/build/
+/out/
 
