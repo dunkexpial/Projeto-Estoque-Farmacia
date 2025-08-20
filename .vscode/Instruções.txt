@@ -1,0 +1,65 @@
+Siga o passo a passo que não tem erro!!
+
+1° Instale todos os arquivos que está na pasta zipada que mandei.
+
+2° Confira se o JDK de vocês são a mesma versão que a minha.
+
+3° Se você já tem o JAVA_HOME ignore esse passo 3. Caso você não tenha, você tera que acessar o edit the system environment variables.
+
+3.1° Você tera que adicionar uma nova variável. Nomeie essa variável de JAVA_HOME e especificar o caminho até a versão do JDK.
+
+3.2° O Caminho será o seguinte -> C:\Program Files\Java\jdk-17
+
+3.3° É OBRIGATÓRIO que você COLOQUE as pastas do javafx sdk e jmods dentro da pasta Java. A pasta Java tera 3 pastas JMODS | SDK | JDK.
+
+4° O terminal padrão para executar os comandos é pelo cmd. Portanto pressione as seguintes teclas no VSCODE.
+
+4.1° Ctrl + Shift + p 
+
+4.2° Digite: Terminal Select Default Profile.
+
+4.3° Selecione a opção Command Prompt.
+
+5° Preciso que vá na parte esquerda superior da tela e vá na opção Run.
+
+5.1° Selecione a opção Add Configuration... 
+
+5.2° Feito isso o vscode irá criar o arquivo launch.json na pasta .vscode | O ARQUIVO DEVE CONTER EXATAMENTE ISSO.
+
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "java",
+      "name": "Current File",
+      "request": "launch",
+      "mainClass": "${file}"
+    },
+    {
+      "type": "java",
+      "name": "App",
+      "request": "launch",
+      "mainClass": "App",
+      "projectName": "Pharmacy_939977ea",
+      "vmArgs": "--module-path \"C:/Program Files/Java/javafx-sdk-21.0.8/lib\" --add-modules javafx.controls,javafx.fxml"
+    }
+  ]
+}
+
+5.3° Provavelmente você terá um arquvio chamado settings.json | Se não existe crie ele e copie esse pedaço de código. Isso na pasta .vscode | O arquvio deve conter exatamente este código. Caso contrário ele vai dar erro no App.java
+
+{
+  "java.project.sourcePaths": ["src"],
+  "java.project.outputPath": "bin",
+  "java.project.referencedLibraries": [
+    "C:/Program Files/Java/javafx-sdk-21.0.8/lib**/*.jar"
+  ]
+}
+
+
+6° Ao seguir esses passos você deve ser capaz de rodar a aplicação. Pressione F5 
+
+
+
+
+
