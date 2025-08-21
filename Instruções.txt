@@ -75,7 +75,7 @@ Siga o passo a passo que não tem erro!! CRIE AS PASTAS EXATAMENTE ONDE ESPECIFI
 
 9.3° No própio VSCODE você verá o META-MF. Selecione o MANIFEST.MF.
 
-9.4° Copie o nome da Main Class. Provavelmente vai ser [APP]. Se não for, copie.
+9.4° Confira se o Main Class existe. Provavelmente vai ser [APP]'. 
 
 10° Abra o cmd, no propio terminal do VSCODE. Copie e cole o seguinte trecho. Ele vai criar uma pasta chama MyRuntime. Você pode receber um aviso que é muito grande ou algo do tipo, selecione a opção colar em uma unica linha. Se não aparecer esse aviso, ignore essa minha observação. FAÇA ISSO APENAS UMA VEZ. SÓ REPITA ISSO SE VOCÊ TIVER DELETADO A PASTA MYRUNTIME.
 
