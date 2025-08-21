@@ -1,6 +1,6 @@
 Siga o passo a passo que não tem erro!! CRIE AS PASTAS EXATAMENTE ONDE ESPECIFIQUEI
 
-1° Instale todos os arquivos que está na pasta zipada que mandei.
+1° Instale todos os arquivos que está na pasta zipada que mandei. Ainda não instale o wix314. Isso é no passo 8°.
 
 2° Confira se o JDK de vocês são a mesma versão que a minha.
 
