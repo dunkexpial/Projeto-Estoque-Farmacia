@@ -36,6 +36,7 @@ public class App extends Application {
 
     private final ObservableList<Medicamento> dados = FXCollections.observableArrayList();
 
+    @SuppressWarnings("deprecation")
     @Override
     public void start(Stage stage) {
         // ---------- TABELA PRINCIPAL ----------

@@ -83,7 +83,9 @@ Siga o passo a passo que não tem erro!! CRIE AS PASTAS EXATAMENTE ONDE ESPECIFI
 
 11° Com a pasta MyRuntime feita, copie e cole o seguinte trecho. Pode levar um tempo para finalizar a a criação. Esse comando faça apenas se for fazer o executável. Delete o existente antes de rodar o comando.
 
-"C:\Program Files\Java\jdk-17\bin\jpackage" ^--name "MeuApp" ^--input . ^--main-jar Pharmacy.jar ^--main-class App ^--type exe ^--dest ./dist ^--runtime-image MyRuntime ^--win-shortcut ^--win-menu
+OBS: informe o nome do arquivo.jar que você criou no passo 9.1° no comando abaixo. 
+
+"C:\Program Files\Java\jdk-17\bin\jpackage" ^--name "MeuApp" ^--input . ^--main-jar Nome-Do-Arquivo.jar ^--main-class App ^--type exe ^--dest ./dist ^--runtime-image MyRuntime ^--win-shortcut ^--win-menu
 
 12° Feito isso sem nenhum erro no caminho, ele vai criar o executável numa pasta chama dist. Execute como admin e vai instalar o projeto.
 
