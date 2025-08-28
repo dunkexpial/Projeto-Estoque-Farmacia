@@ -4,7 +4,7 @@ Siga o passo a passo que não tem erro!! CRIE AS PASTAS EXATAMENTE ONDE ESPECIFI
 
 2° Confira se o JDK de vocês são a mesma versão que a minha.
 
-3° Se você já tem o JAVA_HOME ignore esse passo 3. Caso você não tenha, você tera que acessar o edit the system environment variables.
+3° VEJA O CAMINHO NO PASSO 3.2. Se você já tem o JAVA_HOME ignore esse passo 3. Caso você não tenha, você tera que acessar o edit the system environment variables.
 
 3.1° Você tera que adicionar uma nova variável. Nomeie essa variável de JAVA_HOME e especificar o caminho até a versão do JDK.
 
