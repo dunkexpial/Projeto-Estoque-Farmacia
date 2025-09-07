@@ -7,8 +7,11 @@ import javafx.scene.layout.VBox;
 import javafx.scene.layout.HBox;
 import javafx.geometry.Pos;
 import javafx.scene.paint.Color;
-import javafx.util.StringConverter;
+// import javafx.scene.control.TextField;
+// import javafx.util.StringConverter; não tava usando mais
 
+import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
@@ -29,6 +32,9 @@ public class Controller {
     @FXML private Label totalLabel;
     @FXML private Button editarSelecionadoBtn;
     @FXML private Button excluirSelecionadoBtn;
+    @FXML private TextField inputField;
+    @FXML private Label statusLabel;
+    
 
     private final List<Medicamento> medicamentos = new ArrayList<>();
     private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
@@ -261,5 +267,34 @@ public class Controller {
         public void setQuantidade(int quantidade) { this.quantidade = quantidade; }
         public LocalDate getValidade() { return validade; }
         public void setValidade(LocalDate validade) { this.validade = validade; }
+    }
+
+
+
+// New method to save inputField text to database. Thanks copilot, to describe my code
+    @FXML
+    private void salvarNoBanco() {
+        String text = inputField.getText();
+
+        if (text == null || text.isBlank()) {
+            statusLabel.setText("Bota uma coisa aí antes de salvar");
+            return;
+        }
+
+        String sql = "INSERT INTO test (text) VALUES (?)";
+
+        try (Connection conn = DataBase.getConnection();
+            PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+            stmt.setString(1, text);
+            stmt.executeUpdate();
+
+            statusLabel.setText("Valor foi salvo no banco " + text);
+            inputField.clear();
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            statusLabel.setText("Deu um erro aí ao salvar o banco: " + e.getMessage());
+        }
     }
 }

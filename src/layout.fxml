@@ -53,4 +53,16 @@
         </VBox>
     </right>
 
+
+<!-- Bottom: Input field, save button, and status label for database interaction -->
+    <bottom>
+        <VBox spacing="10" alignment="CENTER" style="-fx-padding: 20;">
+            <TextField fx:id="inputField" promptText="Digite algo"/>
+            <Button text="Salvar no banco" onAction="#salvarNoBanco"/>
+            <Label fx:id="statusLabel" text="Status: aguardando..." />
+        </VBox>
+    </bottom>
+
+
+
 </BorderPane>
