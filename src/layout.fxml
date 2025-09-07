@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.image.*?>
+<?import javafx.geometry.*?>
+
+<BorderPane xmlns:fx="http://javafx.com/fxml" fx:controller="Controller">
+
+    <!-- Top controls: search, sort, filter, total items -->
+    <top>
+        <HBox spacing="10" alignment="CENTER_LEFT" style="-fx-background-color: #222;">
+            <padding>
+                <Insets top="10" right="10" bottom="10" left="10"/>
+            </padding>
+            <Label text="🔍 Buscar:" style="-fx-text-fill: white;"/>
+            <TextField fx:id="searchField" promptText="Digite o nome do remédio"/>
+            <Label text="Ordenar por:" style="-fx-text-fill: white;"/>
+            <ComboBox fx:id="sortCombo" prefWidth="150"/>
+            <Label text="Filtrar:" style="-fx-text-fill: white;"/>
+            <ComboBox fx:id="filterCombo" prefWidth="150"/>
+            <Label fx:id="totalLabel" text="Total: 0" style="-fx-text-fill: white; -fx-font-weight: bold;"/>
+        </HBox>
+    </top>
+
+    <!-- Center: TilePane grid for medicines -->
+    <center>
+        <ScrollPane fitToWidth="true" style="-fx-background-color: transparent;">
+            <TilePane fx:id="gridPane" hgap="10" vgap="10" prefColumns="3" TilePane.alignment="TOP_CENTER">
+                <padding>
+                    <Insets top="10" right="10" bottom="10" left="10"/>
+                </padding>
+            </TilePane>
+        </ScrollPane>
+    </center>
+
+    <!-- Right: Add/Edit/Delete medicine form -->
+    <right>
+        <VBox spacing="12" alignment="TOP_CENTER" style="-fx-background-color: #0000FF; -fx-background-radius: 10;">
+            <padding>
+                <Insets top="10" right="10" bottom="10" left="10"/>
+            </padding>
+            <Label text="+ Novo Medicamento" style="-fx-font-size: 16px; -fx-text-fill: white; -fx-font-weight: bold;"/>
+            <TextField fx:id="nomeField" promptText="Nome do Remédio"/>
+            <TextField fx:id="qtdField" promptText="Quantidade"/>
+            <TextField fx:id="validadeField" promptText="Validade (dd/MM/yyyy)"/>
+            <Button text="✔ Adicionar / Salvar Remédio" onAction="#adicionarMedicamento" style="-fx-background-color: #FF5C00; -fx-text-fill: white; -fx-font-weight: bold;"/>
+            <!-- Remove onAction for edit button; editing is handled in the card buttons -->
+            <Button fx:id="editarSelecionadoBtn" text="✎ Editar Selecionado"
+                    style="-fx-background-color: #FFA500; -fx-text-fill: white; -fx-font-weight: bold;"/>
+            <Button fx:id="excluirSelecionadoBtn" text="🗑 Excluir Selecionado"
+                    style="-fx-background-color: #FF0000; -fx-text-fill: white; -fx-font-weight: bold;"/>
+        </VBox>
+    </right>
+
+</BorderPane>

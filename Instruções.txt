@@ -20,7 +20,7 @@ Siga o passo a passo que não tem erro!! CRIE AS PASTAS EXATAMENTE ONDE ESPECIFI
 
 4.3° Selecione a opção Command Prompt.
 
-5° Preciso que vá na parte esquerda superior da tela e vá na opção Run.
+5° Preciso que vá na parte esquerda superior da tela e vá na opção Run. Projeto-Estoque-Farmacia_f081827
 
 5.1° Selecione a opção Add Configuration... | Depois selecione Java [SE APARECER, TEM VEZES QUE NÃO APARECE. ESPERE ALGUNS SEGUNDOS]
 

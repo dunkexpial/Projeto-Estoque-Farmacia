@@ -29,10 +29,12 @@ replay_pid*
 /com/sun/
 /com/sun/*
 /javafx/
-/META-INF/
+/META-INF/  
 /MyRuntime/
 /bin/
 /target/
 /build/
 /out/
 
+
+.idea/
