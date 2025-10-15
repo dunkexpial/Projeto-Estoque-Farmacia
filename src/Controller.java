@@ -144,7 +144,7 @@ public class Controller {
         try {
             return LocalDate.parse(str, formatter);
         } catch (DateTimeParseException e) {
-            Alert alert = new Alert(Alert.AlertType.ERROR, "Formato de data inválido! Use dd/MM/yyyy");
+            Alert alert = new Alert(Alert.AlertType.ERROR, "Formato de data inválido! Use dd/mm/yyyy");
             alert.showAndWait();
             return null;
         }
@@ -166,7 +166,6 @@ public class Controller {
                 })
                 .collect(Collectors.toList());
 
-        // Sorting
         Comparator<Medicamento> comparator;
         switch (sort) {
             case "Quantidade": comparator = Comparator.comparingInt(Medicamento::getQuantidade); break;
@@ -199,14 +198,14 @@ public class Controller {
         imageView.setFitHeight(80);
 
         Label nameLabel = new Label(med.getNome());
-        nameLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
+        nameLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 14px; -fx-text-fill: black;");
 
-        Label qtyLabel = new Label("Qtd: " + med.getQuantidade());
-        qtyLabel.setStyle("-fx-font-size: 13px;");
+        Label qtyLabel = new Label("Quantidade: " + med.getQuantidade());
+        qtyLabel.setStyle("-fx-font-size: 13px; -fx-text-fill: black;");
         if (med.getQuantidade() < 5) qtyLabel.setTextFill(Color.RED);
 
         Label dateLabel = new Label("Validade: " + med.getValidade().format(formatter));
-        dateLabel.setStyle("-fx-font-size: 13px;");
+        dateLabel.setStyle("-fx-font-size: 13px; -fx-text-fill: black;");
         if (!med.getValidade().isBefore(LocalDate.now()) &&
                 med.getValidade().isBefore(LocalDate.now().plusDays(7))) dateLabel.setTextFill(Color.ORANGE);
 
@@ -214,32 +213,28 @@ public class Controller {
         buttons.setAlignment(Pos.CENTER);
         Button plusBtn = new Button("+");
         Button minusBtn = new Button("-");
-        Button editBtn = new Button("✎");
         Button delBtn = new Button("🗑");
 
-        String btnStyle = "-fx-background-color: #FF5C00; -fx-text-fill: white; -fx-font-weight: bold;";
+        String btnStyle = "-fx-background-color: #FF5C00; -fx-text-fill: black; -fx-font-weight: bold;";
         plusBtn.setStyle(btnStyle);
         minusBtn.setStyle(btnStyle);
-        editBtn.setStyle("-fx-background-color: #FFA500; -fx-text-fill: white; -fx-font-weight: bold;");
-        delBtn.setStyle("-fx-background-color: #FF0000; -fx-text-fill: white; -fx-font-weight: bold;");
+        delBtn.setStyle("-fx-background-color: #FF0000; -fx-text-fill: black; -fx-font-weight: bold;");
 
         plusBtn.setOnAction(e -> { med.setQuantidade(med.getQuantidade()+1); refreshGrid(); });
         minusBtn.setOnAction(e -> { if (med.getQuantidade()>0) med.setQuantidade(med.getQuantidade()-1); refreshGrid(); });
-        editBtn.setOnAction(e -> editarMedicamento(med));
         delBtn.setOnAction(e -> excluirMedicamento(med));
 
-        buttons.getChildren().addAll(plusBtn, minusBtn, editBtn, delBtn);
+        buttons.getChildren().addAll(plusBtn, minusBtn, delBtn);
         itemBox.getChildren().addAll(imageView, nameLabel, qtyLabel, dateLabel, buttons);
 
         itemBox.setOnMouseClicked(e -> {
             selectedMed = med;
-            refreshGrid(); // redraw to highlight selected card
+            refreshGrid();
         });
 
-        // Optional: highlight if selected
         if (med == selectedMed) {
             itemBox.setStyle(
-                    "-fx-background-color: #FFD700; " +
+                    "-fx-background-color: #FFC04D; " +
                             "-fx-padding: 15; " +
                             "-fx-border-radius: 10; " +
                             "-fx-background-radius: 10;" +

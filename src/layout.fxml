@@ -2,67 +2,70 @@
 
 <?import javafx.scene.layout.*?>
 <?import javafx.scene.control.*?>
-<?import javafx.scene.image.*?>
 <?import javafx.geometry.*?>
+<?import javafx.scene.paint.Color?>
 
-<BorderPane xmlns:fx="http://javafx.com/fxml" fx:controller="Controller">
+<BorderPane xmlns:fx="http://javafx.com/fxml" fx:controller="Controller"
+            style="-fx-background-color: #f5f5f5;"
+            stylesheets="@theme.css">
 
-    <!-- Top controls: search, sort, filter, total items -->
+    <!-- Top bar (categorias estilo Kabum) -->
     <top>
-        <HBox spacing="10" alignment="CENTER_LEFT" style="-fx-background-color: #222;">
-            <padding>
-                <Insets top="10" right="10" bottom="10" left="10"/>
-            </padding>
-            <Label text="🔍 Buscar:" style="-fx-text-fill: white;"/>
-            <TextField fx:id="searchField" promptText="Digite o nome do remédio"/>
-            <Label text="Ordenar por:" style="-fx-text-fill: white;"/>
-            <ComboBox fx:id="sortCombo" prefWidth="150"/>
-            <Label text="Filtrar:" style="-fx-text-fill: white;"/>
-            <ComboBox fx:id="filterCombo" prefWidth="150"/>
-            <Label fx:id="totalLabel" text="Total: 0" style="-fx-text-fill: white; -fx-font-weight: bold;"/>
+        <HBox spacing="10" alignment="CENTER_LEFT"
+              style="-fx-background-color: white; -fx-padding: 10; -fx-border-color: #e0e0e0; -fx-border-width: 0 0 1 0;">
+            <Label text="💊 Medicamentos" style="-fx-font-size: 18px; -fx-font-weight: bold;"/>
+            <Region HBox.hgrow="ALWAYS"/>
+            <Label text="Buscar:"/>
+            <TextField fx:id="searchField" promptText="Digite o nome do remédio" prefWidth="200"/>
+            <Label text="Ordenar:"/>
+            <ComboBox fx:id="sortCombo" prefWidth="140"/>
+            <Label text="Filtrar:"/>
+            <ComboBox fx:id="filterCombo" prefWidth="140"/>
+            <Label fx:id="totalLabel" text="Total: 0"
+                   style="-fx-font-weight: bold; -fx-text-fill: #FF6600; -fx-font-size: 14px;"/>
         </HBox>
     </top>
 
-    <!-- Center: TilePane grid for medicines -->
+    <!-- Center: grid estilo Kabum com cartões -->
     <center>
-        <ScrollPane fitToWidth="true" style="-fx-background-color: transparent;">
-            <TilePane fx:id="gridPane" hgap="10" vgap="10" prefColumns="3" TilePane.alignment="TOP_CENTER">
-                <padding>
-                    <Insets top="10" right="10" bottom="10" left="10"/>
-                </padding>
+        <ScrollPane fitToWidth="true" style="-fx-background: transparent;">
+            <TilePane fx:id="gridPane" hgap="15" vgap="15" prefColumns="4"
+                      style="-fx-padding: 20;"
+                      TilePane.alignment="TOP_CENTER">
             </TilePane>
         </ScrollPane>
     </center>
 
-    <!-- Right: Add/Edit/Delete medicine form -->
+    <!-- Right panel: formulário lateral -->
     <right>
-        <VBox spacing="12" alignment="TOP_CENTER" style="-fx-background-color: #0000FF; -fx-background-radius: 10;">
-            <padding>
-                <Insets top="10" right="10" bottom="10" left="10"/>
-            </padding>
-            <Label text="+ Novo Medicamento" style="-fx-font-size: 16px; -fx-text-fill: white; -fx-font-weight: bold;"/>
-            <TextField fx:id="nomeField" promptText="Nome do Remédio"/>
+        <VBox spacing="12" alignment="TOP_CENTER"
+              style="-fx-background-color: white; -fx-background-radius: 12; -fx-padding: 15;
+                     -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.15), 8, 0, 0, 2);">
+            <Label text="+ Novo Medicamento"
+                   style="-fx-font-size: 16px; -fx-text-fill: #FF6600; -fx-font-weight: bold;"/>
+            <TextField fx:id="nomeField" promptText="Nome do Remédio" />
             <TextField fx:id="qtdField" promptText="Quantidade"/>
-            <TextField fx:id="validadeField" promptText="Validade (dd/MM/yyyy)"/>
-            <Button text="✔ Adicionar / Salvar Remédio" onAction="#adicionarMedicamento" style="-fx-background-color: #FF5C00; -fx-text-fill: white; -fx-font-weight: bold;"/>
-            <!-- Remove onAction for edit button; editing is handled in the card buttons -->
+            <TextField fx:id="validadeField" promptText="Validade (dd/mm/yyyy)"/>
+            <Button text="✔ Adicionar / Salvar"
+                    onAction="#adicionarMedicamento"
+                    style="-fx-background-color: #FF6600; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 6;"/>
             <Button fx:id="editarSelecionadoBtn" text="✎ Editar Selecionado"
-                    style="-fx-background-color: #FFA500; -fx-text-fill: white; -fx-font-weight: bold;"/>
+                    style="-fx-background-color: #FFA500; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 6;"/>
             <Button fx:id="excluirSelecionadoBtn" text="🗑 Excluir Selecionado"
-                    style="-fx-background-color: #FF0000; -fx-text-fill: white; -fx-font-weight: bold;"/>
+                    style="-fx-background-color: #FF0000; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 6;"/>
         </VBox>
     </right>
 
-
-<!-- Bottom: Input field, save button, and status label for database interaction -->
+    <!-- Bottom: status do banco -->
     <bottom>
-        <VBox spacing="10" alignment="CENTER" style="-fx-padding: 20;">
+        <VBox spacing="8" alignment="CENTER"
+              style="-fx-padding: 15; -fx-background-color: white; -fx-border-color: #e0e0e0; -fx-border-width: 1 0 0 0;">
             <TextField fx:id="inputField" promptText="Digite algo"/>
-            <Button text="Salvar no banco" onAction="#salvarNoBanco"/>
-            <Label fx:id="statusLabel" text="Status: aguardando..." />
+            <Button text="Salvar no banco" onAction="#salvarNoBanco"
+                    style="-fx-background-color: #FF6600; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 6;"/>
+            <Label fx:id="statusLabel" text="Status: aguardando..."
+                   style="-fx-text-fill: gray;"/>
         </VBox>
     </bottom>
-
-
 
 </BorderPane>
