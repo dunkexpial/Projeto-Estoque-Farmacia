@@ -7,7 +7,7 @@ public class App extends Application {
     @Override
     public void start(Stage stage) throws Exception {
         FXMLLoader loader = new FXMLLoader(getClass().getResource("layout.fxml"));
-        Scene scene = new Scene(loader.load(), 900, 500);
+        Scene scene = new Scene(loader.load(), 1045, 600);
 
         stage.setTitle("Farmácia - Estoque de Remédios");
         stage.setScene(scene);

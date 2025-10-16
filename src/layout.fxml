@@ -39,13 +39,17 @@
     <!-- Right panel: formulário lateral -->
     <right>
         <VBox spacing="12" alignment="TOP_CENTER"
-              style="-fx-background-color: white; -fx-background-radius: 12; -fx-padding: 15;
-                     -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.15), 8, 0, 0, 2);">
+              style="-fx-background-color: white; -fx-background-radius: 0; -fx-padding: 15;
+                 -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.15), 8, 0, 0, 2);">
             <Label text="+ Novo Medicamento"
                    style="-fx-font-size: 16px; -fx-text-fill: #FF6600; -fx-font-weight: bold;"/>
             <TextField fx:id="nomeField" promptText="Nome do Remédio" />
+            <TextField fx:id="batchField" promptText="Lote do Remédio" />
             <TextField fx:id="qtdField" promptText="Quantidade"/>
             <TextField fx:id="validadeField" promptText="Validade (dd/mm/yyyy)"/>
+            <!-- New field for per-medicine low stock alert -->
+            <TextField fx:id="thresholdField" promptText="Alerta mínimo (estoque)" />
+
             <Button text="✔ Adicionar / Salvar"
                     onAction="#adicionarMedicamento"
                     style="-fx-background-color: #FF6600; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 6;"/>
@@ -55,17 +59,4 @@
                     style="-fx-background-color: #FF0000; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 6;"/>
         </VBox>
     </right>
-
-    <!-- Bottom: status do banco -->
-    <bottom>
-        <VBox spacing="8" alignment="CENTER"
-              style="-fx-padding: 15; -fx-background-color: white; -fx-border-color: #e0e0e0; -fx-border-width: 1 0 0 0;">
-            <TextField fx:id="inputField" promptText="Digite algo"/>
-            <Button text="Salvar no banco" onAction="#salvarNoBanco"
-                    style="-fx-background-color: #FF6600; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 6;"/>
-            <Label fx:id="statusLabel" text="Status: aguardando..."
-                   style="-fx-text-fill: gray;"/>
-        </VBox>
-    </bottom>
-
 </BorderPane>
