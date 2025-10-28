@@ -2,61 +2,67 @@
 
 <?import javafx.scene.layout.*?>
 <?import javafx.scene.control.*?>
-<?import javafx.geometry.*?>
-<?import javafx.scene.paint.Color?>
 
-<BorderPane xmlns:fx="http://javafx.com/fxml" fx:controller="Controller"
-            style="-fx-background-color: #f5f5f5;"
-            stylesheets="@theme.css">
-
-    <!-- Top bar (categorias estilo Kabum) -->
+<BorderPane xmlns:fx="http://javafx.com/fxml" fx:controller="Controller" styleClass="border-pane">
     <top>
-        <HBox spacing="10" alignment="CENTER_LEFT"
-              style="-fx-background-color: white; -fx-padding: 10; -fx-border-color: #e0e0e0; -fx-border-width: 0 0 1 0;">
-            <Label text="💊 Medicamentos" style="-fx-font-size: 18px; -fx-font-weight: bold;"/>
+        <HBox styleClass="hbox" spacing="10" alignment="CENTER_LEFT">
+            <Label id="title" text="💊 Sistema de Estoque"/>
             <Region HBox.hgrow="ALWAYS"/>
-            <Label text="Buscar:"/>
-            <TextField fx:id="searchField" promptText="Digite o nome do remédio" prefWidth="200"/>
-            <Label text="Ordenar:"/>
+            <Label text="Buscar:" styleClass="label"/>
+            <TextField fx:id="searchField" promptText="Digite o nome do produto" prefWidth="200"/>
+            <Label text="Ordenar:" styleClass="label"/>
             <ComboBox fx:id="sortCombo" prefWidth="140"/>
-            <Label text="Filtrar:"/>
+            <Label text="Filtrar:" styleClass="label"/>
             <ComboBox fx:id="filterCombo" prefWidth="140"/>
-            <Label fx:id="totalLabel" text="Total: 0"
-                   style="-fx-font-weight: bold; -fx-text-fill: #FF6600; -fx-font-size: 14px;"/>
+            <Label fx:id="totalLabel" text="Total: 0"/>
         </HBox>
     </top>
 
-    <!-- Center: grid estilo Kabum com cartões -->
     <center>
-        <ScrollPane fitToWidth="true" style="-fx-background: transparent;">
-            <TilePane fx:id="gridPane" hgap="15" vgap="15" prefColumns="4"
-                      style="-fx-padding: 20;"
-                      TilePane.alignment="TOP_CENTER">
-            </TilePane>
+        <ScrollPane fitToWidth="true" styleClass="scroll-pane">
+            <TilePane fx:id="gridPane" prefColumns="4" styleClass="tile-pane"/>
         </ScrollPane>
     </center>
 
-    <!-- Right panel: formulário lateral -->
     <right>
-        <VBox spacing="12" alignment="TOP_CENTER"
-              style="-fx-background-color: white; -fx-background-radius: 0; -fx-padding: 15;
-                 -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.15), 8, 0, 0, 2);">
-            <Label text="+ Novo Medicamento"
-                   style="-fx-font-size: 16px; -fx-text-fill: #FF6600; -fx-font-weight: bold;"/>
-            <TextField fx:id="nomeField" promptText="Nome do Remédio" />
-            <TextField fx:id="batchField" promptText="Lote do Remédio" />
-            <TextField fx:id="qtdField" promptText="Quantidade"/>
-            <TextField fx:id="validadeField" promptText="Validade (dd/mm/yyyy)"/>
-            <!-- New field for per-medicine low stock alert -->
-            <TextField fx:id="thresholdField" promptText="Alerta mínimo (estoque)" />
-
-            <Button text="✔ Adicionar / Salvar"
-                    onAction="#adicionarMedicamento"
-                    style="-fx-background-color: #FF6600; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 6;"/>
-            <Button fx:id="editarSelecionadoBtn" text="✎ Editar Selecionado"
-                    style="-fx-background-color: #FFA500; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 6;"/>
-            <Button fx:id="excluirSelecionadoBtn" text="🗑 Excluir Selecionado"
-                    style="-fx-background-color: #FF0000; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 6;"/>
+        <VBox styleClass="vbox" spacing="0" alignment="TOP_CENTER">
+            <HBox styleClass="toggle-hbox" spacing="0" alignment="CENTER">
+                <ToggleButton fx:id="gerenciarLotesBtn" text="📦 Gerenciar Lotes" selected="true" onAction="#alternarPainel">
+                    <ToggleGroup fx:id="panelToggleGroup"/>
+                </ToggleButton>
+                <ToggleButton fx:id="gerenciarFornecedoresBtn" text="🏢 Gerenciar Fornecedores" toggleGroup="$panelToggleGroup" onAction="#alternarPainel"/>
+            </HBox>
+            <Separator/>
+            <VBox fx:id="painelLote" styleClass="vbox-panel" spacing="12" alignment="TOP_CENTER">
+                <Label text="+ Novo Lote de Estoque" styleClass="panel-title"/>
+                <Label text="Nome do Produto:" styleClass="label"/>
+                <TextField fx:id="nomeProdutoField" promptText="Ex: Paracetamol 500mg"/>
+                <Label text="Fornecedor:" styleClass="label"/>
+                <ComboBox fx:id="fornecedorCombo" promptText="Selecione o fornecedor" prefWidth="200"/>
+                <TextField fx:id="numeroLoteField" promptText="Número do Lote (ex: B001)"/>
+                <TextField fx:id="qtdField" promptText="Quantidade"/>
+                <TextField fx:id="dataEntradaField" promptText="Data Entrada (dd/mm/yyyy)"/>
+                <TextField fx:id="validadeField" promptText="Validade (dd/mm/yyyy)"/>
+                <TextField fx:id="thresholdField" promptText="Alerta mínimo (estoque)"/>
+                <Button text="✔ Adicionar / Salvar Lote" onAction="#adicionarLote" styleClass="button, primary-color"/>
+                <Button fx:id="editarSelecionadoBtn" text="✎ Editar Selecionado" styleClass="button, warning-color"/>
+                <Button fx:id="excluirSelecionadoBtn" text="🗑 Excluir Selecionado" styleClass="button, error-color"/>
+            </VBox>
+            <VBox fx:id="painelFornecedor" styleClass="vbox-panel" spacing="12" alignment="TOP_CENTER" visible="false" managed="false">
+                <Label text="🏢 Gerenciar Fornecedores" styleClass="panel-title"/>
+                <TextField fx:id="nomeFornecedorField" promptText="Nome do Fornecedor"/>
+                <TextField fx:id="cnpjField" promptText="CNPJ"/>
+                <TextField fx:id="telefoneField" promptText="Telefone"/>
+                <TextField fx:id="emailField" promptText="E-mail"/>
+                <Button fx:id="adicionarFornecedorBtn" text="✔ Adicionar / Salvar Fornecedor" onAction="#adicionarFornecedor" styleClass="button, secondary-color"/>
+                <Label text="Fornecedores Cadastrados:" styleClass="label"/>
+                <ListView fx:id="fornecedoresListView" prefHeight="200" styleClass="list-view"/>
+                <HBox spacing="5" alignment="CENTER">
+                    <Button fx:id="novoFornecedorBtn" text="➕ Novo" onAction="#novoFornecedor" styleClass="button, accent-color"/>
+                    <Button text="✎ Editar" onAction="#editarFornecedor" styleClass="button, warning-color"/>
+                    <Button text="🗑 Excluir" onAction="#excluirFornecedor" styleClass="button, error-color"/>
+                </HBox>
+            </VBox>
         </VBox>
     </right>
 </BorderPane>

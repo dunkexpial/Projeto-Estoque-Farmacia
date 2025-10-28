@@ -6,17 +6,13 @@ import javafx.scene.layout.TilePane;
 import javafx.scene.layout.VBox;
 import javafx.scene.layout.HBox;
 import javafx.geometry.Pos;
-import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 import javafx.scene.Scene;
 import javafx.geometry.Insets;
 import javafx.application.Platform;
-// import javafx.scene.control.TextField;
-// import javafx.util.StringConverter; não tava usando mais
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.Comparator;
@@ -27,9 +23,11 @@ import java.util.stream.Collectors;
 public class Controller {
 
     @FXML private TilePane gridPane;
-    @FXML private TextField nomeField;
-    @FXML private TextField batchField;
+    @FXML private TextField nomeProdutoField;
+    @FXML private ComboBox<Fornecedor> fornecedorCombo;
+    @FXML private TextField numeroLoteField;
     @FXML private TextField qtdField;
+    @FXML private TextField dataEntradaField;
     @FXML private TextField validadeField;
     @FXML private TextField searchField;
     @FXML private ComboBox<String> sortCombo;
@@ -37,47 +35,181 @@ public class Controller {
     @FXML private Label totalLabel;
     @FXML private Button editarSelecionadoBtn;
     @FXML private Button excluirSelecionadoBtn;
-    @FXML private TextField inputField;
-    @FXML private Label statusLabel;
     @FXML private TextField thresholdField;
+    @FXML private Button novoFornecedorBtn;
+    @FXML private Button adicionarFornecedorBtn;
 
+    // Painel de alternância (Lote/Fornecedor)
+    @FXML private VBox painelLote;
+    @FXML private VBox painelFornecedor;
+    @FXML private ToggleButton gerenciarLotesBtn;
+    @FXML private ToggleButton gerenciarFornecedoresBtn;
 
+    // Campos para gerenciar fornecedores
+    @FXML private TextField nomeFornecedorField;
+    @FXML private TextField cnpjField;
+    @FXML private TextField telefoneField;
+    @FXML private TextField emailField;
+    @FXML private ListView<Fornecedor> fornecedoresListView;
 
-    private final List<Medicamento> medicamentos = new ArrayList<>();
+    // Listas em memória
+    private final List<Produto> produtos = new ArrayList<>();
+    private final List<Fornecedor> fornecedores = new ArrayList<>();
+    private final List<LoteEstoque> lotes = new ArrayList<>();
+    private final List<MovimentacaoEstoque> movimentacoes = new ArrayList<>();
+    private final List<Notificacao> notificacoes = new ArrayList<>();
+
     private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
-    private Medicamento editingMed = null; // reference to currently edited medicine
-    private Medicamento selectedMed = null;
+    private LoteEstoque editingLote = null;
+    private LoteEstoque selectedLote = null;
+    private Fornecedor editingFornecedor = null;
+
+    // Contadores para IDs
+    private int nextProdutoId = 1;
+    private int nextFornecedorId = 1;
+    private int nextLoteId = 1;
+    private int nextMovimentacaoId = 1;
+    private int nextNotificacaoId = 1;
 
     @FXML
     public void initialize() {
         gridPane.setHgap(10);
         gridPane.setVgap(10);
+        gridPane.setAlignment(Pos.TOP_LEFT);
 
-        // Example medicines
-        medicamentos.add(new Medicamento("Paracetamol", "B001", 20, LocalDate.of(2025, 12, 15), 5));
-        medicamentos.add(new Medicamento("Ibuprofeno", "B002", 8, LocalDate.of(2025, 10, 25), 10));
-        medicamentos.add(new Medicamento("Amoxicilina", "B003", 3, LocalDate.of(2025, 10, 10), 5));
-        medicamentos.add(new Medicamento("Dipirona", "B004", 15, LocalDate.of(2025, 11, 5), 5));
-        medicamentos.add(new Medicamento("Loratadina", "B005", 2, LocalDate.of(2025, 10, 18), 3));
-        medicamentos.add(new Medicamento("Omeprazol", "B006", 12, LocalDate.of(2026, 1, 1), 5));
-        medicamentos.add(new Medicamento("Cetirizina", "B007", 7, LocalDate.of(2025, 10, 20), 5));
-        medicamentos.add(new Medicamento("Metformina", "B008", 25, LocalDate.of(2026, 3, 15), 10));
-        medicamentos.add(new Medicamento("Clorfenamina", "B009", 0, LocalDate.of(2025, 9, 30), 5));
-        medicamentos.add(new Medicamento("Diclofenaco", "B010", 18, LocalDate.of(2025, 12, 5), 5));
+        // Inicializar dados de exemplo
+        inicializarDadosExemplo();
 
-        // Initialize sort and filter
-        sortCombo.getItems().addAll("Nome", "Quantidade", "Validade");
-        sortCombo.setValue("Nome");
+        // Configurar ComboBox de fornecedores
+        atualizarComboFornecedores();
+        atualizarListaFornecedores();
+
+        // Disable supplier fields by default
+        setSupplierFieldsEditable(false);
+
+        // Ensure Adicionar / Salvar Fornecedor button is enabled initially
+        if (adicionarFornecedorBtn != null) {
+            adicionarFornecedorBtn.setDisable(false);
+        }
+
+        // Add listener to fornecedoresListView for selection
+        fornecedoresListView.getSelectionModel().selectedItemProperty().addListener((obs, oldSelection, newSelection) -> {
+            if (newSelection != null) {
+                // Populate fields with selected supplier's data
+                nomeFornecedorField.setText(newSelection.getNome());
+                cnpjField.setText(newSelection.getCnpj());
+                telefoneField.setText(newSelection.getTelefone());
+                emailField.setText(newSelection.getEmail());
+                // Ensure fields are not editable until "Editar" or "Novo" is clicked
+                setSupplierFieldsEditable(false);
+                if (adicionarFornecedorBtn != null) {
+                    adicionarFornecedorBtn.setDisable(false);
+                }
+            } else {
+                // Clear fields and disable editing when no supplier is selected
+                limparCamposFornecedor();
+                setSupplierFieldsEditable(false);
+                if (adicionarFornecedorBtn != null) {
+                    adicionarFornecedorBtn.setDisable(false);
+                }
+            }
+        });
+
+        sortCombo.getItems().addAll("Produto", "Quantidade", "Validade");
+        sortCombo.setValue("Produto");
         filterCombo.getItems().addAll("Todos", "Vencidos", "Ativos");
         filterCombo.setValue("Todos");
 
-        // Listeners for search, sort, filter
+        // Listeners for search, sort, and filter
         searchField.textProperty().addListener((obs, oldV, newV) -> refreshGrid());
         sortCombo.valueProperty().addListener((obs, oldV, newV) -> refreshGrid());
         filterCombo.valueProperty().addListener((obs, oldV, newV) -> refreshGrid());
 
-        // Automatic '/' insertion for validadeField
-        validadeField.setTextFormatter(new TextFormatter<>(change -> {
+        // Formatação automática de datas
+        configurarFormatacaoData(validadeField);
+        configurarFormatacaoData(dataEntradaField);
+
+        // Botões de ação - Lote
+        editarSelecionadoBtn.setOnAction(e -> {
+            if (selectedLote != null) editarLote(selectedLote);
+        });
+
+        excluirSelecionadoBtn.setOnAction(e -> {
+            if (selectedLote != null) {
+                excluirLote(selectedLote);
+                selectedLote = null;
+                refreshGrid();
+            }
+        });
+
+        // Inicialmente mostrar painel de lotes
+        mostrarPainelLote();
+
+        refreshGrid();
+        Platform.runLater(() -> verificarEGerarAlertas());
+    }
+
+    private void inicializarDadosExemplo() {
+        // Criar fornecedores de exemplo
+        fornecedores.add(new Fornecedor(nextFornecedorId++, "Farmacorp LTDA", "12.345.678/0001-90", "(81) 3333-4444", "contato@farmacorp.com"));
+        fornecedores.add(new Fornecedor(nextFornecedorId++, "MediSupply S.A.", "98.765.432/0001-10", "(81) 3555-6666", "vendas@medisupply.com"));
+        fornecedores.add(new Fornecedor(nextFornecedorId++, "PharmaDist", "11.222.333/0001-44", "(81) 3777-8888", "info@pharmadist.com"));
+
+        LocalDate hoje = LocalDate.now();
+
+        // Quantidade normal, validade normal
+        criarLoteExemplo("Paracetamol", "B001", 10, hoje.minusDays(10), hoje.plusDays(20), 0, 5);
+        // Quantidade igual ao threshold, validade normal
+        criarLoteExemplo("Ibuprofeno", "B002", 5, hoje.minusDays(5), hoje.plusDays(15), 1, 5);
+        // Quantidade abaixo do threshold, validade normal
+        criarLoteExemplo("Amoxicilina", "B003", 2, hoje.minusDays(7), hoje.plusDays(10), 2, 5);
+        // Quantidade normal, validade próxima (menos de 7 dias)
+        criarLoteExemplo("Dipirona", "B004", 8, hoje.minusDays(5), hoje.plusDays(3), 0, 5);
+        // Quantidade igual ao threshold, validade próxima
+        criarLoteExemplo("Loratadina", "B005", 3, hoje.minusDays(10), hoje.plusDays(2), 1, 3);
+        // Quantidade abaixo do threshold, validade próxima
+        criarLoteExemplo("Omeprazol", "B006", 1, hoje.minusDays(15), hoje.plusDays(5), 2, 5);
+        // Quantidade normal, validade expirada
+        criarLoteExemplo("Cetirizina", "B007", 7, hoje.minusDays(30), hoje.minusDays(1), 0, 5);
+        // Quantidade igual ao threshold, validade expirada
+        criarLoteExemplo("Metformina", "B008", 10, hoje.minusDays(40), hoje.minusDays(5), 1, 10);
+        // Quantidade abaixo do threshold, validade expirada
+        criarLoteExemplo("Clorfenamina", "B009", 0, hoje.minusDays(50), hoje.minusDays(10), 2, 5);
+        // Extra: validade normal e quantidade muito alta (teste visual)
+        criarLoteExemplo("Diclofenaco", "B010", 20, hoje.minusDays(1), hoje.plusDays(30), 0, 5);
+    }
+
+    private void criarLoteExemplo(String nomeProduto, String numeroLote, int qtd,
+                                  LocalDate entrada, LocalDate validade, int fornIdx, int threshold) {
+        // Buscar ou criar produto
+        Produto produto = buscarOuCriarProduto(nomeProduto);
+        Fornecedor f = fornecedores.get(fornIdx);
+
+        LoteEstoque lote = new LoteEstoque(
+                nextLoteId++, numeroLote, qtd, entrada, validade,
+                produto.getIdProduto(), f.getIdFornecedor(), threshold
+        );
+        lote.setProduto(produto);
+        lote.setFornecedor(f);
+        lotes.add(lote);
+
+        // Registrar movimentação de entrada inicial
+        registrarMovimentacao(lote.getIdLote(), qtd, "ENTRADA", "Entrada inicial de estoque");
+    }
+
+    private Produto buscarOuCriarProduto(String nomeProduto) {
+        return produtos.stream()
+                .filter(p -> p.getNome().equalsIgnoreCase(nomeProduto))
+                .findFirst()
+                .orElseGet(() -> {
+                    Produto novoProduto = new Produto(nextProdutoId++, nomeProduto);
+                    produtos.add(novoProduto);
+                    return novoProduto;
+                });
+    }
+
+    private void configurarFormatacaoData(TextField field) {
+        field.setTextFormatter(new TextFormatter<>(change -> {
             if (change.isAdded() || change.isReplaced()) {
                 String digits = change.getControlNewText().replaceAll("[^\\d]", "");
                 if (digits.length() > 8) digits = digits.substring(0, 8);
@@ -100,86 +232,379 @@ public class Controller {
             }
             return change;
         }));
-        editarSelecionadoBtn.setOnAction(e -> {
-            if (selectedMed != null) {
-                editarMedicamento(selectedMed);
-            }
-        });
+    }
 
-        excluirSelecionadoBtn.setOnAction(e -> {
-            if (selectedMed != null) {
-                excluirMedicamento(selectedMed);
-                selectedMed = null;
-                refreshGrid();
-            }
-        });
+    // ==================== GERENCIAMENTO DE PAINÉIS ====================
 
-        refreshGrid();
-        Platform.runLater(() -> verificarAlertas());
+    @FXML
+    private void alternarPainel(javafx.event.ActionEvent event) {
+        ToggleButton source = (ToggleButton) event.getSource();
+
+        if (source == gerenciarLotesBtn && painelLote.isVisible()) {
+            gerenciarLotesBtn.setSelected(true);
+            return;
+        } else if (source == gerenciarFornecedoresBtn && painelFornecedor.isVisible()) {
+            gerenciarFornecedoresBtn.setSelected(true);
+            return;
+        }
+
+        if (source == gerenciarLotesBtn) {
+            mostrarPainelLote();
+        } else if (source == gerenciarFornecedoresBtn) {
+            mostrarPainelFornecedor();
+        }
+    }
+
+    private void mostrarPainelLote() {
+        if (painelLote != null && painelFornecedor != null) {
+            painelLote.setVisible(true);
+            painelLote.setManaged(true);
+            painelFornecedor.setVisible(false);
+            painelFornecedor.setManaged(false);
+            gerenciarLotesBtn.setSelected(true);
+            gerenciarFornecedoresBtn.setSelected(false);
+        }
+    }
+
+    private void mostrarPainelFornecedor() {
+        if (painelLote != null && painelFornecedor != null) {
+            painelLote.setVisible(false);
+            painelLote.setManaged(false);
+            painelFornecedor.setVisible(true);
+            painelFornecedor.setManaged(true);
+            gerenciarLotesBtn.setSelected(false);
+            gerenciarFornecedoresBtn.setSelected(true);
+        }
+    }
+
+    // ==================== GERENCIAMENTO DE LOTES ====================
+
+    @FXML
+    private void adicionarLote() {
+        String nomeProduto = nomeProdutoField.getText().trim();
+        Fornecedor fornecedorSelecionado = fornecedorCombo.getValue();
+        String numeroLote = numeroLoteField.getText().trim();
+        String validadeStr = validadeField.getText();
+        String entradaStr = dataEntradaField.getText();
+
+        int qtd = 0;
+        int threshold = 5;
+
+        try { qtd = Integer.parseInt(qtdField.getText()); } catch (NumberFormatException ignored) {}
+        try { threshold = Integer.parseInt(thresholdField.getText()); } catch (NumberFormatException ignored) {}
+
+        if (nomeProduto.isEmpty()) {
+            mostrarAlerta("Erro", "Digite o nome do produto!");
+            return;
+        }
+
+        if (fornecedorSelecionado == null) {
+            mostrarAlerta("Erro", "Selecione um fornecedor!");
+            return;
+        }
+
+        if (numeroLote.isEmpty() || validadeStr.isEmpty() || entradaStr.isEmpty()) {
+            mostrarAlerta("Erro", "Preencha todos os campos!");
+            return;
+        }
+
+        LocalDate validade = parseDate(validadeStr);
+        LocalDate entrada = parseDate(entradaStr);
+
+        if (validade != null && entrada != null) {
+            if (editingLote != null) {
+                int qtdAnterior = editingLote.getQuantidadeAtual();
+                Produto produto = buscarOuCriarProduto(nomeProduto);
+
+                editingLote.setProduto(produto);
+                editingLote.setIdProduto(produto.getIdProduto());
+                editingLote.setFornecedor(fornecedorSelecionado);
+                editingLote.setIdFornecedor(fornecedorSelecionado.getIdFornecedor());
+                editingLote.setNumeroLote(numeroLote);
+                editingLote.setQuantidadeAtual(qtd);
+                editingLote.setDataEntrada(entrada);
+                editingLote.setDataValidade(validade);
+                editingLote.setAlertThreshold(threshold);
+
+                if (qtd != qtdAnterior) {
+                    int diferenca = qtd - qtdAnterior;
+                    String tipo = diferenca > 0 ? "ENTRADA" : "SAIDA";
+                    registrarMovimentacao(editingLote.getIdLote(), Math.abs(diferenca), tipo, "Ajuste por edição");
+                }
+
+                editingLote = null;
+            } else {
+                Produto produto = buscarOuCriarProduto(nomeProduto);
+
+                LoteEstoque novoLote = new LoteEstoque(
+                        nextLoteId++, numeroLote, qtd, entrada, validade,
+                        produto.getIdProduto(),
+                        fornecedorSelecionado.getIdFornecedor(),
+                        threshold
+                );
+                novoLote.setProduto(produto);
+                novoLote.setFornecedor(fornecedorSelecionado);
+                lotes.add(novoLote);
+
+                registrarMovimentacao(novoLote.getIdLote(), qtd, "ENTRADA", "Entrada inicial de estoque");
+            }
+
+            limparCamposLote();
+            refreshGrid();
+            verificarEGerarAlertas();
+        }
     }
 
     @FXML
-    private void adicionarMedicamento() {
-        String nome = nomeField.getText();
-        String batch = batchField.getText();
-        String validadeStr = validadeField.getText();
-        int threshold = 5;
-        int qtd = 0;
+    private void editarLote(LoteEstoque lote) {
+        nomeProdutoField.setText(lote.getProduto().getNome());
+        fornecedorCombo.setValue(lote.getFornecedor());
+        numeroLoteField.setText(lote.getNumeroLote());
+        qtdField.setText(String.valueOf(lote.getQuantidadeAtual()));
+        dataEntradaField.setText(lote.getDataEntrada().format(formatter));
+        validadeField.setText(lote.getDataValidade().format(formatter));
+        thresholdField.setText(String.valueOf(lote.getAlertThreshold()));
+        editingLote = lote;
+        refreshGrid();
+    }
 
-        try { threshold = Integer.parseInt(thresholdField.getText()); } catch (NumberFormatException ignored) {}
-        try { qtd = Integer.parseInt(qtdField.getText()); } catch (NumberFormatException ignored) {}
+    @FXML
+    private void excluirLote(LoteEstoque lote) {
+        lotes.remove(lote);
+        limparCamposLote();
+        refreshGrid();
+        verificarEGerarAlertas();
+    }
 
-        if (!nome.isEmpty() && !batch.isEmpty() && !validadeStr.isEmpty()) {
-            LocalDate validade = parseDate(validadeStr);
-            if (validade != null) {
-                if (editingMed != null) {
-                    editingMed.setNome(nome);
-                    editingMed.setBatch(batch);
-                    editingMed.setQuantidade(qtd);
-                    editingMed.setValidade(validade);
-                    editingMed.setAlertThreshold(threshold);
-                    editingMed = null;
-                } else {
-                    Medicamento med = new Medicamento(nome, batch, qtd, validade, threshold);
-                    med.setAlertThreshold(threshold);
-                    medicamentos.add(med);
+    private void limparCamposLote() {
+        nomeProdutoField.clear();
+        fornecedorCombo.setValue(null);
+        numeroLoteField.clear();
+        qtdField.clear();
+        dataEntradaField.clear();
+        validadeField.clear();
+        thresholdField.clear();
+        editingLote = null;
+    }
+
+    // ==================== GERENCIAMENTO DE FORNECEDORES ====================
+
+    @FXML
+    private void adicionarFornecedor() {
+        String nome = nomeFornecedorField.getText().trim();
+        String cnpj = cnpjField.getText().trim();
+        String telefone = telefoneField.getText().trim();
+        String email = emailField.getText().trim();
+
+        if (nome.isEmpty()) {
+            mostrarAlerta("Erro", "Digite o nome do fornecedor!");
+            if (adicionarFornecedorBtn != null) {
+                adicionarFornecedorBtn.setDisable(false);
+            }
+            return;
+        }
+
+        if (editingFornecedor != null) {
+            editingFornecedor.setNome(nome);
+            editingFornecedor.setCnpj(cnpj);
+            editingFornecedor.setTelefone(telefone);
+            editingFornecedor.setEmail(email);
+            editingFornecedor = null;
+        } else {
+            boolean duplicateExists = fornecedores.stream()
+                    .anyMatch(f -> f.getNome().equalsIgnoreCase(nome) ||
+                            (cnpj != null && !cnpj.isEmpty() && cnpj.equalsIgnoreCase(f.getCnpj())));
+            if (duplicateExists) {
+                mostrarAlerta("Erro", "Fornecedor com este nome ou CNPJ já existe!");
+                if (adicionarFornecedorBtn != null) {
+                    adicionarFornecedorBtn.setDisable(false);
                 }
-                refreshGrid();
-                nomeField.clear();
-                batchField.clear();
-                qtdField.clear();
-                validadeField.clear();
-                thresholdField.clear();
+                return;
+            }
+
+            Fornecedor novoFornecedor = new Fornecedor(nextFornecedorId++, nome, cnpj, telefone, email);
+            fornecedores.add(novoFornecedor);
+        }
+
+        limparCamposFornecedor();
+        setSupplierFieldsEditable(false);
+        atualizarComboFornecedores();
+        atualizarListaFornecedores();
+        if (adicionarFornecedorBtn != null) {
+            adicionarFornecedorBtn.setDisable(false);
+        }
+    }
+
+    @FXML
+    private void novoFornecedor() {
+        limparCamposFornecedor();
+        setSupplierFieldsEditable(true);
+        editingFornecedor = null;
+        fornecedoresListView.getSelectionModel().clearSelection();
+        if (adicionarFornecedorBtn != null) {
+            adicionarFornecedorBtn.setDisable(false);
+        }
+    }
+
+    @FXML
+    private void editarFornecedor() {
+        Fornecedor selecionado = fornecedoresListView.getSelectionModel().getSelectedItem();
+        if (selecionado == null) {
+            mostrarAlerta("Aviso", "Selecione um fornecedor para editar!");
+            return;
+        }
+
+        setSupplierFieldsEditable(true);
+        editingFornecedor = selecionado;
+        if (adicionarFornecedorBtn != null) {
+            adicionarFornecedorBtn.setDisable(false);
+        }
+    }
+
+    @FXML
+    private void excluirFornecedor() {
+        Fornecedor selecionado = fornecedoresListView.getSelectionModel().getSelectedItem();
+        if (selecionado == null) {
+            mostrarAlerta("Aviso", "Selecione um fornecedor para excluir!");
+            return;
+        }
+
+        boolean temLotes = lotes.stream()
+                .anyMatch(l -> l.getIdFornecedor() == selecionado.getIdFornecedor());
+
+        if (temLotes) {
+            mostrarAlerta("Erro", "Não é possível excluir este fornecedor pois existem lotes vinculados a ele!");
+            return;
+        }
+
+        fornecedores.remove(selecionado);
+        limparCamposFornecedor();
+        setSupplierFieldsEditable(false);
+        atualizarComboFornecedores();
+        atualizarListaFornecedores();
+    }
+
+    private void limparCamposFornecedor() {
+        nomeFornecedorField.clear();
+        cnpjField.clear();
+        telefoneField.clear();
+        emailField.clear();
+        editingFornecedor = null;
+        fornecedoresListView.getSelectionModel().clearSelection();
+        if (adicionarFornecedorBtn != null) {
+            adicionarFornecedorBtn.setDisable(false);
+        }
+    }
+
+    private void atualizarComboFornecedores() {
+        if (fornecedorCombo != null) {
+            fornecedorCombo.setItems(javafx.collections.FXCollections.observableArrayList(fornecedores));
+        }
+    }
+
+    private void atualizarListaFornecedores() {
+        if (fornecedoresListView != null) {
+            fornecedoresListView.setItems(javafx.collections.FXCollections.observableArrayList(fornecedores));
+        }
+    }
+
+    // ==================== MOVIMENTAÇÕES E NOTIFICAÇÕES ====================
+
+    private void registrarMovimentacao(int idLote, int quantidade, String tipo, String observacao) {
+        MovimentacaoEstoque mov = new MovimentacaoEstoque(
+                nextMovimentacaoId++,
+                quantidade,
+                LocalDateTime.now(),
+                tipo,
+                observacao,
+                idLote
+        );
+        movimentacoes.add(mov);
+    }
+
+    private void incrementarQuantidade(LoteEstoque lote, int quantidade) {
+        lote.setQuantidadeAtual(lote.getQuantidadeAtual() + quantidade);
+        registrarMovimentacao(lote.getIdLote(), quantidade, "ENTRADA", "Ajuste manual (+)");
+        verificarEGerarAlertas();
+        refreshGrid();
+    }
+
+    private void decrementarQuantidade(LoteEstoque lote, int quantidade) {
+        if (lote.getQuantidadeAtual() >= quantidade) {
+            lote.setQuantidadeAtual(lote.getQuantidadeAtual() - quantidade);
+            registrarMovimentacao(lote.getIdLote(), quantidade, "SAIDA", "Ajuste manual (-)");
+            verificarEGerarAlertas();
+            refreshGrid();
+        }
+    }
+
+    private void verificarEGerarAlertas() {
+        LocalDate hoje = LocalDate.now();
+
+        for (LoteEstoque lote : lotes) {
+            if (lote.getQuantidadeAtual() < lote.getAlertThreshold()) {
+                gerarNotificacao("ESTOQUE_BAIXO", lote.getIdLote());
+            }
+
+            if (lote.getDataValidade().isAfter(hoje) &&
+                    lote.getDataValidade().isBefore(hoje.plusDays(7))) {
+                gerarNotificacao("VENCIMENTO_PROXIMO", lote.getIdLote());
+            }
+
+            if (lote.getDataValidade().isBefore(hoje)) {
+                gerarNotificacao("VENCIDO", lote.getIdLote());
             }
         }
-        refreshGrid();
-        verificarAlertas();
+
+        List<Notificacao> pendentes = notificacoes.stream()
+                .filter(n -> "PENDENTE".equals(n.getStatus()))
+                .collect(Collectors.toList());
+
+        if (!pendentes.isEmpty()) {
+            mostrarNotificacoes(pendentes);
+        }
     }
 
-    @FXML
-    private void editarMedicamento(Medicamento med) {
-        nomeField.setText(med.getNome());
-        batchField.setText(med.getBatch());
-        qtdField.setText(String.valueOf(med.getQuantidade()));
-        validadeField.setText(med.getValidade().format(formatter));
-        thresholdField.setText(String.valueOf(med.getAlertThreshold()));
-        editingMed = med;
+    private void gerarNotificacao(String tipo, int idLote) {
+        boolean jaExiste = notificacoes.stream()
+                .anyMatch(n -> n.getTipo().equals(tipo) &&
+                        n.getIdLote() == idLote &&
+                        n.getStatus().equals("PENDENTE"));
+
+        if (!jaExiste) {
+            Notificacao notif = new Notificacao(
+                    nextNotificacaoId++,
+                    tipo,
+                    LocalDate.now(),
+                    "PENDENTE",
+                    idLote
+            );
+            notificacoes.add(notif);
+        }
     }
 
-    @FXML
-    private void excluirMedicamento(Medicamento med) {
-        medicamentos.remove(med);
-        refreshGrid();
-    }
+    // ==================== INTERFACE E UTILIDADES ====================
 
     private LocalDate parseDate(String str) {
         try {
             return LocalDate.parse(str, formatter);
         } catch (DateTimeParseException e) {
-            Alert alert = new Alert(Alert.AlertType.ERROR, "Formato de data inválido! Use dd/mm/yyyy");
-            alert.showAndWait();
+            mostrarAlerta("Erro", "Formato de data inválido! Use dd/mm/yyyy");
             return null;
         }
+    }
+
+    private void setSupplierFieldsEditable(boolean editable) {
+        nomeFornecedorField.setEditable(editable);
+        cnpjField.setEditable(editable);
+        telefoneField.setEditable(editable);
+        emailField.setEditable(editable);
+    }
+
+    private void mostrarAlerta(String titulo, String mensagem) {
+        Alert alert = new Alert(Alert.AlertType.ERROR, mensagem);
+        alert.setTitle(titulo);
+        alert.showAndWait();
     }
 
     private void refreshGrid() {
@@ -189,169 +614,174 @@ public class Controller {
         String filter = filterCombo.getValue();
         String sort = sortCombo.getValue();
 
-        List<Medicamento> list = medicamentos.stream()
-                .filter(m -> m.getNome().toLowerCase().contains(search))
-                .filter(m -> {
-                    if ("Vencidos".equals(filter)) return m.getValidade().isBefore(LocalDate.now());
-                    if ("Ativos".equals(filter)) return !m.getValidade().isBefore(LocalDate.now());
+        List<LoteEstoque> list = lotes.stream()
+                .filter(l -> l.getProduto().getNome().toLowerCase().contains(search) ||
+                        l.getFornecedor().getNome().toLowerCase().contains(search))
+                .filter(l -> {
+                    if ("Vencidos".equals(filter)) return l.getDataValidade().isBefore(LocalDate.now());
+                    if ("Ativos".equals(filter)) return !l.getDataValidade().isBefore(LocalDate.now());
                     return true;
                 })
                 .collect(Collectors.toList());
 
-        Comparator<Medicamento> comparator;
+        Comparator<LoteEstoque> comparator;
         switch (sort) {
-            case "Quantidade": comparator = Comparator.comparingInt(Medicamento::getQuantidade); break;
-            case "Validade": comparator = Comparator.comparing(Medicamento::getValidade); break;
-            default: comparator = Comparator.comparing(Medicamento::getNome); break;
+            case "Quantidade": comparator = Comparator.comparingInt(LoteEstoque::getQuantidadeAtual); break;
+            case "Validade": comparator = Comparator.comparing(LoteEstoque::getDataValidade); break;
+            default: comparator = Comparator.comparing(l -> l.getProduto().getNome()); break;
         }
         list.sort(comparator);
 
-        for (Medicamento med : list) {
-            gridPane.getChildren().add(createCard(med));
+        for (LoteEstoque lote : list) {
+            gridPane.getChildren().add(createCard(lote));
         }
 
-        int total = list.stream().mapToInt(Medicamento::getQuantidade).sum();
+        int total = list.stream().mapToInt(LoteEstoque::getQuantidadeAtual).sum();
         totalLabel.setText("Total: " + total);
     }
 
-    private VBox createCard(Medicamento med) {
+    private VBox createCard(LoteEstoque lote) {
         VBox itemBox = new VBox(8);
         itemBox.setAlignment(Pos.CENTER);
-        itemBox.setStyle(
-                "-fx-background-color: #EEEEEE; " +
-                        "-fx-padding: 15; " +
-                        "-fx-border-radius: 10; " +
-                        "-fx-background-radius: 10; " +
-                        "-fx-effect: dropshadow(two-pass-box, rgba(0,0,0,0.2), 5, 0, 0, 3);"
-        );
+        itemBox.getStyleClass().add("card");
 
-        ImageView imageView = new ImageView(new Image("file:med.png"));
+        Produto produto = lote.getProduto();
+        Fornecedor fornecedor = lote.getFornecedor();
+
+        ImageView imageView = new ImageView(new Image(produto.getUrlImagem()));
         imageView.setFitWidth(80);
         imageView.setFitHeight(80);
 
-        Label nameLabel = new Label(med.getNome());
-        nameLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 14px; -fx-text-fill: black;");
+        Label nameLabel = new Label(produto.getNome());
+        nameLabel.getStyleClass().add("name");
 
-        Label batchLabel = new Label("Lote: " + med.getBatch());
-        batchLabel.setStyle("-fx-font-size: 13px; -fx-text-fill: gray;");
+        Label batchLabel = new Label("Lote: " + lote.getNumeroLote());
+        batchLabel.getStyleClass().add("batch");
 
-        Label qtyLabel = new Label("Quantidade: " + med.getQuantidade());
-        qtyLabel.setStyle("-fx-font-size: 13px; -fx-text-fill: black;");
-        if (med.getQuantidade() < med.getAlertThreshold()) qtyLabel.setTextFill(Color.RED);
+        Label fornecedorLabel = new Label("Fornecedor: " + fornecedor.getNome());
+        fornecedorLabel.getStyleClass().add("fornecedor");
 
-        Label dateLabel = new Label("Validade: " + med.getValidade().format(formatter));
-        dateLabel.setStyle("-fx-font-size: 13px; -fx-text-fill: black;");
-        if (!med.getValidade().isBefore(LocalDate.now()) &&
-                med.getValidade().isBefore(LocalDate.now().plusDays(7))) dateLabel.setTextFill(Color.ORANGE);
+        Label qtyLabel = new Label("Quantidade: " + lote.getQuantidadeAtual());
+        qtyLabel.getStyleClass().add("quantity");
+
+        if (lote.getQuantidadeAtual() < lote.getAlertThreshold()) {
+            qtyLabel.getStyleClass().add("low");
+        } else if (lote.getQuantidadeAtual() == lote.getAlertThreshold()) {
+            qtyLabel.getStyleClass().add("warning");
+        }
+
+        Label dateLabel = new Label("Validade: " + lote.getDataValidade().format(formatter));
+        dateLabel.getStyleClass().add("validity");
+
+        LocalDate hoje = LocalDate.now();
+        if (lote.getDataValidade().isBefore(hoje)) {
+            dateLabel.getStyleClass().add("expired");
+        } else if (lote.getDataValidade().isBefore(hoje.plusDays(7))) {
+            dateLabel.getStyleClass().add("near");
+        }
 
         HBox buttons = new HBox(5);
         buttons.setAlignment(Pos.CENTER);
         Button plusBtn = new Button("+");
+        plusBtn.getStyleClass().add("button");
         Button minusBtn = new Button("-");
+        minusBtn.getStyleClass().add("button");
         Button delBtn = new Button("🗑");
+        delBtn.getStyleClass().addAll("button", "delete");
 
-        String btnStyle = "-fx-background-color: #FF5C00; -fx-text-fill: black; -fx-font-weight: bold;";
-        plusBtn.setStyle(btnStyle);
-        minusBtn.setStyle(btnStyle);
-        delBtn.setStyle("-fx-background-color: #FF0000; -fx-text-fill: black; -fx-font-weight: bold;");
-
-        plusBtn.setOnAction(e -> { med.setQuantidade(med.getQuantidade()+1); refreshGrid(); });
-        minusBtn.setOnAction(e -> { if (med.getQuantidade()>0) med.setQuantidade(med.getQuantidade()-1); refreshGrid(); });
-        delBtn.setOnAction(e -> excluirMedicamento(med));
+        plusBtn.setOnAction(e -> incrementarQuantidade(lote, 1));
+        minusBtn.setOnAction(e -> decrementarQuantidade(lote, 1));
+        delBtn.setOnAction(e -> excluirLote(lote));
 
         buttons.getChildren().addAll(plusBtn, minusBtn, delBtn);
-        itemBox.getChildren().addAll(imageView, nameLabel, batchLabel, qtyLabel, dateLabel, buttons);
+        itemBox.getChildren().addAll(imageView, nameLabel, batchLabel,
+                fornecedorLabel, qtyLabel, dateLabel, buttons);
 
         itemBox.setOnMouseClicked(e -> {
-            selectedMed = med;
-            refreshGrid();
+            if (editingLote == null) {
+                selectedLote = lote;
+                refreshGrid();
+            }
         });
 
-        if (med == selectedMed) {
-            itemBox.setStyle(
-                    "-fx-background-color: white; " +
-                            "-fx-padding: 15; " +
-                            "-fx-border-radius: 10; " +
-                            "-fx-background-radius: 10;" +
-                            "-fx-effect: dropshadow(two-pass-box, rgba(0,0,0,0.3), 10, 0, 0, 0);"
-            );
+        if (lote == editingLote) {
+            itemBox.getStyleClass().add("editing");
+        } else if (lote == selectedLote) {
+            itemBox.getStyleClass().add("selected");
         }
 
         return itemBox;
     }
 
-    @FXML
-    private void verificarAlertas() {
-        List<Medicamento> alertas = medicamentos.stream()
-                .filter(m -> m.getQuantidade() < m.getAlertThreshold() || // <-- use threshold
-                        m.getValidade().isBefore(LocalDate.now()) ||
-                        (m.getValidade().isAfter(LocalDate.now()) && m.getValidade().isBefore(LocalDate.now().plusDays(7))))
-                .collect(Collectors.toList());
+    private void mostrarNotificacoes(List<Notificacao> notificacoesPendentes) {
+        VBox content = new VBox(10);
+        content.getStyleClass().add("notification-content");
+        content.setAlignment(Pos.TOP_CENTER);
 
-        if (!alertas.isEmpty()) {
-            mostrarNotificacoes(alertas);
-        }
-    }
-
-    private void mostrarNotificacoes(List<Medicamento> alertas) {
-        VBox root = new VBox(10);
-        root.setPadding(new Insets(15));
-        root.setAlignment(Pos.TOP_CENTER);
-        root.setStyle(
-                "-fx-background-color: white;" +
-                        "-fx-border-radius: 10;" +
-                        "-fx-background-radius: 10;" +
-                        "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.15), 8, 0, 0, 2);" +
-                        "-fx-focus-color: transparent;" +
-                        "-fx-faint-focus-color: transparent;"
-        );
-        root.setFocusTraversable(false);
-
-        // Title
-        Label title = new Label("⚠ Alertas de Medicamentos");
-        title.setStyle("-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #FF6600;");
-        root.getChildren().add(title);
+        Label title = new Label("⚠ Alertas de Estoque");
+        title.getStyleClass().add("notification-title");
+        content.getChildren().add(title);
 
         Separator separator = new Separator();
-        root.getChildren().add(separator);
+        content.getChildren().add(separator);
 
-        // List of alerts
-        for (Medicamento med : alertas) {
-            List<String> messages = new ArrayList<>();
+        for (Notificacao notif : notificacoesPendentes) {
+            LoteEstoque lote = lotes.stream()
+                    .filter(l -> l.getIdLote() == notif.getIdLote())
+                    .findFirst()
+                    .orElse(null);
 
-            // Low stock alert
-            if (med.getQuantidade() < med.getAlertThreshold()) {
-                messages.add("O medicamento \"" + med.getNome() + "\" está com estoque baixo. Quantidade atual: " + med.getQuantidade() + ".");
+            if (lote == null) continue;
+
+            String mensagem = "";
+            switch (notif.getTipo()) {
+                case "ESTOQUE_BAIXO":
+                    mensagem = "⚠ O insumo \"" + lote.getProduto().getNome() +
+                            "\" (Lote: " + lote.getNumeroLote() +
+                            ") está com estoque baixo. Quantidade atual: " +
+                            lote.getQuantidadeAtual() + ".";
+                    break;
+                case "VENCIDO":
+                    mensagem = "⚠ O insumo \"" + lote.getProduto().getNome() +
+                            "\" (Lote: " + lote.getNumeroLote() +
+                            ") está vencido. Venceu em: " +
+                            lote.getDataValidade().format(formatter) + ".";
+                    break;
+                case "VENCIMENTO_PROXIMO":
+                    mensagem = "⚠ O insumo \"" + lote.getProduto().getNome() +
+                            "\" (Lote: " + lote.getNumeroLote() +
+                            ") está próximo de vencer. Vence em: " +
+                            lote.getDataValidade().format(formatter) + ".";
+                    break;
             }
 
-            // Expired
-            if (med.getValidade().isBefore(LocalDate.now())) {
-                messages.add("O medicamento \"" + med.getNome() + "\" está vencido. Venceu em: " + med.getValidade().format(formatter) + ".");
-            }
-            // About to expire
-            else if (med.getValidade().isBefore(LocalDate.now().plusDays(7))) {
-                messages.add("O medicamento \"" + med.getNome() + "\" está próximo de vencer. Vence em: " + med.getValidade().format(formatter) + ".");
-            }
+            VBox alertContainer = new VBox(5);
+            alertContainer.getStyleClass().add("alert-container");
 
-            // Add each message as a separate label
-            for (String msg : messages) {
-                Label label = new Label(msg);
-                label.setStyle("-fx-font-size: 14px; -fx-text-fill: black;");
-                root.getChildren().add(label);
-            }
+            Label label = new Label(mensagem);
+            label.getStyleClass().add("alert-label");
+            label.setWrapText(true);
+            alertContainer.getChildren().add(label);
+
+            content.getChildren().add(alertContainer);
         }
 
-        // Create the stage
+        ScrollPane scrollPane = new ScrollPane(content);
+        scrollPane.setFitToWidth(true);
+        scrollPane.getStyleClass().add("notification-scroll");
+        scrollPane.setFocusTraversable(false);
+
         Stage stage = new Stage();
-        stage.setTitle("Alertas de Medicamentos");
+        stage.setTitle("Alertas de Estoque");
 
-        // Calculate dynamic height
-        int itemHeight = 30;
-        int baseHeight = 60;
-        int totalHeight = baseHeight + root.getChildren().size() * itemHeight;
-        totalHeight = Math.min(totalHeight, 600);
+        int itemHeight = 45;
+        int baseHeight = 70;
+        int totalHeight = baseHeight + notificacoesPendentes.size() * itemHeight;
+        totalHeight = Math.max(totalHeight, 120);
+        totalHeight = Math.min(totalHeight, 400);
 
-        Scene scene = new Scene(root, 650, totalHeight);
+        Scene scene = new Scene(scrollPane, 700, totalHeight);
+        scene.getStylesheets().add(getClass().getResource("styles.css").toExternalForm()); // Add stylesheet
         stage.setScene(scene);
         stage.show();
     }
