@@ -10,7 +10,9 @@ import javafx.stage.Stage;
 import javafx.scene.Scene;
 import javafx.geometry.Insets;
 import javafx.application.Platform;
+import javafx.collections.FXCollections;
 
+import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -70,6 +72,10 @@ public class Controller {
     private int nextLoteId = 1;
     private int nextMovimentacaoId = 1;
     private int nextNotificacaoId = 1;
+
+    //BANCO DE DADOS
+    private FornecedorDAO fornecedorDAO = new FornecedorDAO();
+    private LoteDAO loteDAO = new LoteDAO();
 
     @FXML
     public void initialize() {
@@ -147,7 +153,57 @@ public class Controller {
 
         refreshGrid();
         Platform.runLater(() -> verificarEGerarAlertas());
+
+        //Forncecedores do BD
+        try {
+            List<Fornecedor> dbFornecedores = fornecedorDAO.listarTodos();
+            fornecedores.clear();
+            fornecedores.addAll(dbFornecedores);
+            atualizarComboFornecedores();
+            atualizarListaFornecedores();
+        } catch (SQLException e) {
+            mostrarAlerta("Erro", "Erro ao carregar fornecedores: " + e.getMessage());
+            e.printStackTrace();
+        }
+
+        //Lotes do BD
+        try {
+        fornecedores.clear();
+        fornecedores.addAll(fornecedorDAO.listarTodos());
+        atualizarComboFornecedores();
+        atualizarListaFornecedores();
+        
+        // Carregar lotes
+        List<Object[]> lotesComNome = loteDAO.listarTodosComNome();
+        lotes.clear();
+        
+        for (Object[] item : lotesComNome) {
+            LoteEstoque lote = (LoteEstoque) item[0];
+            String nomeProduto = (String) item[1];
+            
+            // Buscar ou criar produto
+            Produto produto = buscarOuCriarProduto(nomeProduto);
+            lote.setProduto(produto);
+            lote.setIdProduto(produto.getIdProduto());
+            
+            // Vincular fornecedor
+            Fornecedor f = fornecedores.stream()
+                .filter(forn -> forn.getIdFornecedor() == lote.getIdFornecedor())
+                .findFirst()
+                .orElse(null);
+            lote.setFornecedor(f);
+            
+            lotes.add(lote);
+        }
+        
+        refreshGrid();
+        verificarEGerarAlertas();
+        
+    } catch (SQLException e) {
+        mostrarAlerta("Erro", "Corrija aí cabaço: " + e.getMessage());
+        e.printStackTrace();
     }
+}
 
     private void inicializarDadosExemplo() {
         // Criar fornecedores de exemplo
@@ -312,68 +368,71 @@ public class Controller {
         LocalDate entrada = parseDate(entradaStr);
 
         if (validade != null && entrada != null) {
-            if (editingLote != null) {
-                int qtdAnterior = editingLote.getQuantidadeAtual();
-                Produto produto = buscarOuCriarProduto(nomeProduto);
+            try {
+                if (editingLote != null) {
+                    int qtdAnterior = editingLote.getQuantidadeAtual();
+                    Produto produto = buscarOuCriarProduto(nomeProduto);
 
-                editingLote.setProduto(produto);
-                editingLote.setIdProduto(produto.getIdProduto());
-                editingLote.setFornecedor(fornecedorSelecionado);
-                editingLote.setIdFornecedor(fornecedorSelecionado.getIdFornecedor());
-                editingLote.setNumeroLote(numeroLote);
-                editingLote.setQuantidadeAtual(qtd);
-                editingLote.setDataEntrada(entrada);
-                editingLote.setDataValidade(validade);
-                editingLote.setAlertThreshold(threshold);
+                    editingLote.setProduto(produto);
+                    editingLote.setIdProduto(produto.getIdProduto());
+                    editingLote.setFornecedor(fornecedorSelecionado);
+                    editingLote.setIdFornecedor(fornecedorSelecionado.getIdFornecedor());
+                    editingLote.setNumeroLote(numeroLote);
+                    editingLote.setQuantidadeAtual(qtd);
+                    editingLote.setDataEntrada(entrada);
+                    editingLote.setDataValidade(validade);
+                    editingLote.setAlertThreshold(threshold);
 
-                if (qtd != qtdAnterior) {
-                    int diferenca = qtd - qtdAnterior;
-                    String tipo = diferenca > 0 ? "ENTRADA" : "SAIDA";
-                    registrarMovimentacao(editingLote.getIdLote(), Math.abs(diferenca), tipo, "Ajuste por edição");
+                    loteDAO.atualizar(editingLote, nomeProduto);
+
+                    if (qtd != qtdAnterior) {
+                        int diferenca = qtd - qtdAnterior;
+                        String tipo = diferenca > 0 ? "ENTRADA" : "SAIDA";
+                        registrarMovimentacao(editingLote.getIdLote(), Math.abs(diferenca), tipo, "Ajuste por edição");
+                    }
+
+                    editingLote = null;
+                } else {
+                    Produto produto = buscarOuCriarProduto(nomeProduto);
+
+                    LoteEstoque novoLote = new LoteEstoque(
+                            0, numeroLote, qtd, entrada, validade,
+                            produto.getIdProduto(),
+                            fornecedorSelecionado.getIdFornecedor(),
+                            threshold
+                    );
+                    novoLote.setProduto(produto);
+                    novoLote.setFornecedor(fornecedorSelecionado);
+                    
+                    loteDAO.inserir(novoLote, nomeProduto);
+                    lotes.add(novoLote);
+
+                    registrarMovimentacao(novoLote.getIdLote(), qtd, "ENTRADA", "Entrada inicial de estoque");
                 }
 
-                editingLote = null;
-            } else {
-                Produto produto = buscarOuCriarProduto(nomeProduto);
-
-                LoteEstoque novoLote = new LoteEstoque(
-                        nextLoteId++, numeroLote, qtd, entrada, validade,
-                        produto.getIdProduto(),
-                        fornecedorSelecionado.getIdFornecedor(),
-                        threshold
-                );
-                novoLote.setProduto(produto);
-                novoLote.setFornecedor(fornecedorSelecionado);
-                lotes.add(novoLote);
-
-                registrarMovimentacao(novoLote.getIdLote(), qtd, "ENTRADA", "Entrada inicial de estoque");
+                limparCamposLote();
+                refreshGrid();
+                verificarEGerarAlertas();
+                
+            } catch (SQLException e) {
+                mostrarAlerta("Erro", "Erro ao salvar lote: " + e.getMessage());
+                e.printStackTrace();
             }
-
-            limparCamposLote();
-            refreshGrid();
-            verificarEGerarAlertas();
         }
     }
 
     @FXML
-    private void editarLote(LoteEstoque lote) {
-        nomeProdutoField.setText(lote.getProduto().getNome());
-        fornecedorCombo.setValue(lote.getFornecedor());
-        numeroLoteField.setText(lote.getNumeroLote());
-        qtdField.setText(String.valueOf(lote.getQuantidadeAtual()));
-        dataEntradaField.setText(lote.getDataEntrada().format(formatter));
-        validadeField.setText(lote.getDataValidade().format(formatter));
-        thresholdField.setText(String.valueOf(lote.getAlertThreshold()));
-        editingLote = lote;
-        refreshGrid();
-    }
-
-    @FXML
     private void excluirLote(LoteEstoque lote) {
-        lotes.remove(lote);
-        limparCamposLote();
-        refreshGrid();
-        verificarEGerarAlertas();
+        try {
+            loteDAO.excluir(lote.getIdLote());
+            lotes.remove(lote);
+            limparCamposLote();
+            refreshGrid();
+            verificarEGerarAlertas();
+        } catch (SQLException e) {
+            mostrarAlerta("Erro", "Erro ao excluir lote: " + e.getMessage());
+            e.printStackTrace();
+        }
     }
 
     private void limparCamposLote() {
@@ -385,6 +444,18 @@ public class Controller {
         validadeField.clear();
         thresholdField.clear();
         editingLote = null;
+    }
+    @FXML
+    private void editarLote(LoteEstoque lote) {
+        nomeProdutoField.setText(lote.getProduto().getNome());
+        fornecedorCombo.setValue(lote.getFornecedor());
+        numeroLoteField.setText(lote.getNumeroLote());
+        qtdField.setText(String.valueOf(lote.getQuantidadeAtual()));
+        dataEntradaField.setText(lote.getDataEntrada().format(formatter));
+        validadeField.setText(lote.getDataValidade().format(formatter));
+        thresholdField.setText(String.valueOf(lote.getAlertThreshold()));
+        editingLote = lote;
+        refreshGrid();
     }
 
     // ==================== GERENCIAMENTO DE FORNECEDORES ====================
@@ -404,34 +475,73 @@ public class Controller {
             return;
         }
 
-        if (editingFornecedor != null) {
-            editingFornecedor.setNome(nome);
-            editingFornecedor.setCnpj(cnpj);
-            editingFornecedor.setTelefone(telefone);
-            editingFornecedor.setEmail(email);
-            editingFornecedor = null;
-        } else {
-            boolean duplicateExists = fornecedores.stream()
-                    .anyMatch(f -> f.getNome().equalsIgnoreCase(nome) ||
-                            (cnpj != null && !cnpj.isEmpty() && cnpj.equalsIgnoreCase(f.getCnpj())));
-            if (duplicateExists) {
-                mostrarAlerta("Erro", "Fornecedor com este nome ou CNPJ já existe!");
-                if (adicionarFornecedorBtn != null) {
-                    adicionarFornecedorBtn.setDisable(false);
+        try {
+            if (editingFornecedor != null) {
+                // Atualizar
+                editingFornecedor.setNome(nome);
+                editingFornecedor.setCnpj(cnpj);
+                editingFornecedor.setTelefone(telefone);
+                editingFornecedor.setEmail(email);
+                
+                fornecedorDAO.atualizar(editingFornecedor);
+                editingFornecedor = null;
+            } else {
+                // Verificar duplicata
+                if (!cnpj.isEmpty() && fornecedorDAO.cnpjJaExiste(cnpj, 0)) {
+                    mostrarAlerta("Erro", "CNPJ já cadastrado!");
+                    if (adicionarFornecedorBtn != null) {
+                        adicionarFornecedorBtn.setDisable(false);
+                    }
+                    return;
                 }
-                return;
+
+                // Inserir
+                Fornecedor novoFornecedor = new Fornecedor(0, nome, cnpj, telefone, email);
+                fornecedorDAO.inserir(novoFornecedor);
+                fornecedores.add(novoFornecedor);
             }
 
-            Fornecedor novoFornecedor = new Fornecedor(nextFornecedorId++, nome, cnpj, telefone, email);
-            fornecedores.add(novoFornecedor);
+            limparCamposFornecedor();
+            setSupplierFieldsEditable(false);
+            atualizarComboFornecedores();
+            atualizarListaFornecedores();
+            
+        } catch (SQLException e) {
+            mostrarAlerta("Erro", "Erro ao salvar fornecedor: " + e.getMessage());
+            e.printStackTrace();
+        } finally {
+            if (adicionarFornecedorBtn != null) {
+                adicionarFornecedorBtn.setDisable(false);
+            }
+        }
+    }
+
+    @FXML
+    private void excluirFornecedor() {
+        Fornecedor selecionado = fornecedoresListView.getSelectionModel().getSelectedItem();
+        if (selecionado == null) {
+            mostrarAlerta("Aviso", "Selecione um fornecedor para excluir!");
+            return;
         }
 
-        limparCamposFornecedor();
-        setSupplierFieldsEditable(false);
-        atualizarComboFornecedores();
-        atualizarListaFornecedores();
-        if (adicionarFornecedorBtn != null) {
-            adicionarFornecedorBtn.setDisable(false);
+        boolean temLotes = lotes.stream()
+                .anyMatch(l -> l.getIdFornecedor() == selecionado.getIdFornecedor());
+
+        if (temLotes) {
+            mostrarAlerta("Erro", "Não é possível excluir este fornecedor pois existem lotes vinculados a ele!");
+            return;
+        }
+
+        try {
+            fornecedorDAO.excluir(selecionado.getIdFornecedor());
+            fornecedores.remove(selecionado);
+            limparCamposFornecedor();
+            setSupplierFieldsEditable(false);
+            atualizarComboFornecedores();
+            atualizarListaFornecedores();
+        } catch (SQLException e) {
+            mostrarAlerta("Erro", "Erro ao excluir fornecedor: " + e.getMessage());
+            e.printStackTrace();
         }
     }
 
@@ -459,29 +569,6 @@ public class Controller {
         if (adicionarFornecedorBtn != null) {
             adicionarFornecedorBtn.setDisable(false);
         }
-    }
-
-    @FXML
-    private void excluirFornecedor() {
-        Fornecedor selecionado = fornecedoresListView.getSelectionModel().getSelectedItem();
-        if (selecionado == null) {
-            mostrarAlerta("Aviso", "Selecione um fornecedor para excluir!");
-            return;
-        }
-
-        boolean temLotes = lotes.stream()
-                .anyMatch(l -> l.getIdFornecedor() == selecionado.getIdFornecedor());
-
-        if (temLotes) {
-            mostrarAlerta("Erro", "Não é possível excluir este fornecedor pois existem lotes vinculados a ele!");
-            return;
-        }
-
-        fornecedores.remove(selecionado);
-        limparCamposFornecedor();
-        setSupplierFieldsEditable(false);
-        atualizarComboFornecedores();
-        atualizarListaFornecedores();
     }
 
     private void limparCamposFornecedor() {
@@ -522,9 +609,19 @@ public class Controller {
         movimentacoes.add(mov);
     }
 
-    private void incrementarQuantidade(LoteEstoque lote, int quantidade) {
+        //eerm esqueci, lembrei... é o update da quantidade do produto no banco
+        private void incrementarQuantidade(LoteEstoque lote, int quantidade) {
         lote.setQuantidadeAtual(lote.getQuantidadeAtual() + quantidade);
         registrarMovimentacao(lote.getIdLote(), quantidade, "ENTRADA", "Ajuste manual (+)");
+        
+        // Update no banco ... err acho que só isso mesmo
+        try {
+            loteDAO.atualizarQuantidade(lote.getIdLote(), lote.getQuantidadeAtual());
+        } catch (SQLException e) {
+            mostrarAlerta("Erro", "Erro ao atualizar quantidade: " + e.getMessage());
+            e.printStackTrace();
+        }
+        
         verificarEGerarAlertas();
         refreshGrid();
     }
@@ -533,6 +630,15 @@ public class Controller {
         if (lote.getQuantidadeAtual() >= quantidade) {
             lote.setQuantidadeAtual(lote.getQuantidadeAtual() - quantidade);
             registrarMovimentacao(lote.getIdLote(), quantidade, "SAIDA", "Ajuste manual (-)");
+            
+            // Update no banco ... err acho que só isso mesmo
+            try {
+                loteDAO.atualizarQuantidade(lote.getIdLote(), lote.getQuantidadeAtual());
+            } catch (SQLException e) {
+                mostrarAlerta("Erro", "Erro ao atualizar quantidade: " + e.getMessage());
+                e.printStackTrace();
+            }
+            
             verificarEGerarAlertas();
             refreshGrid();
         }
