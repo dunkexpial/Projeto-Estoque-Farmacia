@@ -163,14 +163,19 @@
     -fx-cursor: hand;
     -fx-padding: 8 15;
     -fx-text-fill: white;
+    -fx-font-size: 13px;
 }
 
 /* Botões específicos */
-.button.primary-color { -fx-background-color: #DA1212; }
-.button.secondary-color { -fx-background-color: #4CAF50; }
+.button.primary-color { -fx-background-color: #DA1212; -fx-padding: 6 12 }
+.button.secondary-color { -fx-background-color: #4CAF50; -fx-padding: 6 12 }
 .button.accent-color { -fx-background-color: #2196F3; -fx-padding: 6 12; }
 .button.warning-color { -fx-background-color: #FFA500; -fx-padding: 6 12; }
 .button.error-color { -fx-background-color: #FF0000; -fx-padding: 6 12; }
+
+.button.accent-color:hover {
+    -fx-background-color: #1976D2;
+}
 
 /* ListView de fornecedores */
 .list-view {
@@ -179,24 +184,34 @@
     -fx-background-radius: 6;
 }
 
-/* ====== Cards ====== */
+/* ====== Cards com Feedback Visual Aprimorado ====== */
+
+/* Estado Normal - Card Padrão */
 .card {
-    -fx-background-color: #E8ECEF; /* Darker background for non-selected cards */
+    -fx-background-color: #E8ECEF;
     -fx-padding: 15;
     -fx-border-radius: 10;
     -fx-background-radius: 10;
-    -fx-effect: dropshadow(two-pass-box, rgba(0,0,0,0.2), 5, 0, 0, 3); /* Consistent shadow */
+    -fx-border-width: 3;
+    -fx-border-color: transparent;
+    -fx-effect: dropshadow(two-pass-box, rgba(0,0,0,0.2), 5, 0, 0, 3);
     -fx-alignment: CENTER;
 }
 
-.card.editing {
-    -fx-background-color: #BBDEFB; /* Light blue for editing */
-    -fx-effect: dropshadow(two-pass-box, rgba(0,0,0,0.2), 5, 0, 0, 3); /* Same shadow as .card */
+/* Estado Selecionado - Fundo Escuro ⭐ */
+.card.selected {
+    -fx-background-color: #c4cad1 !important;
+    -fx-border-color: transparent !important;
+    -fx-border-width: 3 !important;
+    -fx-effect: dropshadow(two-pass-box, rgba(0,0,0,0.3), 8, 0, 0, 4) !important;
 }
 
-.card.selected {
-    -fx-background-color: #FFFFFF; /* White for selected */
-    -fx-effect: dropshadow(two-pass-box, rgba(0,0,0,0.2), 5, 0, 0, 3); /* Same shadow as .card */
+/* Estado Editando - Fundo Azul ✏️ */
+.card.editing {
+    -fx-background-color: #BBDEFB !important;
+    -fx-border-color: transparent !important;
+    -fx-border-width: 3 !important;
+    -fx-effect: dropshadow(two-pass-box, rgba(0,0,0,0.3), 8, 0, 0, 4) !important;
 }
 
 /* Labels dentro do card */
@@ -253,4 +268,39 @@
     -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.15), 8, 0, 0, 2);
     -fx-focus-color: transparent;
     -fx-faint-focus-color: transparent;
+}
+
+/* ====== Estilos para seleção de imagem ====== */
+
+/* Preview da imagem */
+.vbox-panel ImageView {
+    -fx-background-color: #F5F5F5;
+    -fx-border-color: #ccc;
+    -fx-border-width: 2;
+    -fx-border-radius: 8;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 5, 0, 0, 2);
+}
+
+/* Label de status da imagem */
+.image-label {
+    -fx-font-size: 11px;
+    -fx-text-fill: #666666;
+    -fx-font-style: italic;
+}
+
+/* Separadores no painel */
+.vbox-panel .separator {
+    -fx-padding: 5 0;
+}
+
+/* Container de botões de imagem */
+.vbox-panel HBox {
+    -fx-spacing: 5;
+}
+
+/* Ajuste do preview no card - imagens dos produtos */
+.card ImageView {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.15), 3, 0, 0, 1);
 }

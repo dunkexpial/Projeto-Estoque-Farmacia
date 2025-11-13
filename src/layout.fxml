@@ -2,6 +2,7 @@
 
 <?import javafx.scene.layout.*?>
 <?import javafx.scene.control.*?>
+<?import javafx.scene.image.ImageView?>
 
 <BorderPane xmlns:fx="http://javafx.com/fxml" fx:controller="Controller" styleClass="border-pane">
     <top>
@@ -38,28 +39,50 @@
                 <ToggleButton fx:id="gerenciarFornecedoresBtn" text="Gerenciar Fornecedores" toggleGroup="$panelToggleGroup" onAction="#alternarPainel"/>
             </HBox>
             <Separator/>
+
+            <!-- PAINEL DE LOTES -->
             <VBox fx:id="painelLote" styleClass="vbox-panel" spacing="12" alignment="TOP_CENTER">
                 <Label text="+ Novo Lote de Estoque" styleClass="panel-title"/>
-                <Label text="Nome do Produto:" styleClass="label"/>
-                <TextField fx:id="nomeProdutoField" promptText="Ex: Paracetamol 500mg"/>
-                <Label text="Fornecedor:" styleClass="label"/>
-                <ComboBox fx:id="fornecedorCombo" promptText="Selecione o fornecedor" prefWidth="200"/>
-                <TextField fx:id="numeroLoteField" promptText="Número do Lote (ex: B001)"/>
+
+                <TextField fx:id="nomeProdutoField" promptText="Nome do Produto"/>
+
+                <ComboBox fx:id="fornecedorCombo" promptText="Selecione o fornecedor" maxWidth="Infinity"/>
+
+                <TextField fx:id="numeroLoteField" promptText="Identificador do Lote"/>
                 <TextField fx:id="qtdField" promptText="Quantidade"/>
-                <TextField fx:id="dataEntradaField" promptText="Data Entrada (dd/mm/yyyy)"/>
-                <TextField fx:id="validadeField" promptText="Validade (dd/mm/yyyy)"/>
-                <TextField fx:id="thresholdField" promptText="Alerta mínimo (estoque)"/>
-                <Button text="✓ Adicionar / Salvar Lote" onAction="#adicionarLote" styleClass="button, primary-color"/>
-                <Button fx:id="editarSelecionadoBtn" text="Editar Selecionado" styleClass="button, warning-color"/>
-                <Button fx:id="excluirSelecionadoBtn" text="Excluir Selecionado" styleClass="button, error-color"/>
+                <TextField fx:id="dataEntradaField" promptText="Data de Entrada"/>
+                <TextField fx:id="validadeField" promptText="Data de Validade"/>
+                <TextField fx:id="thresholdField" promptText="Quantidade Alerta"/>
+
+                <!-- SEÇÃO DE IMAGEM -->
+                <Separator/>
+                <Label text="Imagem do Produto:" styleClass="label"/>
+
+                <VBox spacing="8" alignment="CENTER">
+                    <Label fx:id="imagemSelecionadaLabel" text="Nenhuma imagem selecionada" styleClass="image-label"/>
+
+                    <HBox spacing="5" alignment="CENTER">
+                        <Button fx:id="selecionarImagemBtn" text="Selecionar Imagem" onAction="#selecionarImagem" styleClass="button, accent-color"/>
+                        <Button text="Remover" onAction="#removerImagem" styleClass="button, warning-color"/>
+                    </HBox>
+                </VBox>
+                <!-- BOTÕES DE AÇÃO -->
+                <Separator/>
+                <HBox spacing="8" alignment="CENTER">
+                    <Button text="Salvar" onAction="#adicionarLote" styleClass="button, primary-color"/>
+                    <Button fx:id="editarSelecionadoBtn" text="Editar" styleClass="button, warning-color"/>
+                    <Button fx:id="excluirSelecionadoBtn" text="Excluir" styleClass="button, error-color"/>
+                </HBox>
             </VBox>
+
+            <!-- PAINEL DE FORNECEDORES -->
             <VBox fx:id="painelFornecedor" styleClass="vbox-panel" spacing="12" alignment="TOP_CENTER" visible="false" managed="false">
                 <Label text="Gerenciar Fornecedores" styleClass="panel-title"/>
                 <TextField fx:id="nomeFornecedorField" promptText="Nome do Fornecedor"/>
                 <TextField fx:id="cnpjField" promptText="CNPJ"/>
                 <TextField fx:id="telefoneField" promptText="Telefone"/>
                 <TextField fx:id="emailField" promptText="E-mail"/>
-                <Button fx:id="adicionarFornecedorBtn" text="✓ Adicionar / Salvar Fornecedor" onAction="#adicionarFornecedor" styleClass="button, secondary-color"/>
+                <Button fx:id="adicionarFornecedorBtn" text="Adicionar / Salvar Fornecedor" onAction="#adicionarFornecedor" styleClass="button, secondary-color"/>
                 <Label text="Fornecedores Cadastrados:" styleClass="label"/>
                 <ListView fx:id="fornecedoresListView" prefHeight="200" styleClass="list-view"/>
                 <HBox spacing="5" alignment="CENTER">
