@@ -6,7 +6,7 @@
 <BorderPane xmlns:fx="http://javafx.com/fxml" fx:controller="Controller" styleClass="border-pane">
     <top>
         <HBox styleClass="hbox" spacing="10" alignment="CENTER_LEFT">
-            <Label id="title" text="💊 Sistema de Estoque"/>
+            <Label id="title" text="Sistema de Estoque"/>
             <Region HBox.hgrow="ALWAYS"/>
             <Label text="Buscar:" styleClass="label"/>
             <TextField fx:id="searchField" promptText="Digite o nome do produto" prefWidth="200"/>
@@ -14,7 +14,12 @@
             <ComboBox fx:id="sortCombo" prefWidth="140"/>
             <Label text="Filtrar:" styleClass="label"/>
             <ComboBox fx:id="filterCombo" prefWidth="140"/>
-            <Label fx:id="totalLabel" text="Total: 0"/>
+            <!-- Right-aligned section -->
+            <HBox styleClass="right-header-section" spacing="10" alignment="CENTER_RIGHT">
+                <Button text="Alertas" onAction="#mostrarAlertas" styleClass="button, primary-color"/>
+                <Button text="Histórico" onAction="#mostrarHistorico" styleClass="button, primary-color"/>
+                <Label fx:id="totalLabel" text="Total: 0" styleClass="total-label-header"/>
+            </HBox>
         </HBox>
     </top>
 
@@ -27,10 +32,10 @@
     <right>
         <VBox styleClass="vbox" spacing="0" alignment="TOP_CENTER">
             <HBox styleClass="toggle-hbox" spacing="0" alignment="CENTER">
-                <ToggleButton fx:id="gerenciarLotesBtn" text="📦 Gerenciar Lotes" selected="true" onAction="#alternarPainel">
+                <ToggleButton fx:id="gerenciarLotesBtn" text="Gerenciar Lotes" selected="true" onAction="#alternarPainel">
                     <ToggleGroup fx:id="panelToggleGroup"/>
                 </ToggleButton>
-                <ToggleButton fx:id="gerenciarFornecedoresBtn" text="🏢 Gerenciar Fornecedores" toggleGroup="$panelToggleGroup" onAction="#alternarPainel"/>
+                <ToggleButton fx:id="gerenciarFornecedoresBtn" text="Gerenciar Fornecedores" toggleGroup="$panelToggleGroup" onAction="#alternarPainel"/>
             </HBox>
             <Separator/>
             <VBox fx:id="painelLote" styleClass="vbox-panel" spacing="12" alignment="TOP_CENTER">
@@ -44,23 +49,23 @@
                 <TextField fx:id="dataEntradaField" promptText="Data Entrada (dd/mm/yyyy)"/>
                 <TextField fx:id="validadeField" promptText="Validade (dd/mm/yyyy)"/>
                 <TextField fx:id="thresholdField" promptText="Alerta mínimo (estoque)"/>
-                <Button text="✔ Adicionar / Salvar Lote" onAction="#adicionarLote" styleClass="button, primary-color"/>
-                <Button fx:id="editarSelecionadoBtn" text="✎ Editar Selecionado" styleClass="button, warning-color"/>
-                <Button fx:id="excluirSelecionadoBtn" text="🗑 Excluir Selecionado" styleClass="button, error-color"/>
+                <Button text="✓ Adicionar / Salvar Lote" onAction="#adicionarLote" styleClass="button, primary-color"/>
+                <Button fx:id="editarSelecionadoBtn" text="Editar Selecionado" styleClass="button, warning-color"/>
+                <Button fx:id="excluirSelecionadoBtn" text="Excluir Selecionado" styleClass="button, error-color"/>
             </VBox>
             <VBox fx:id="painelFornecedor" styleClass="vbox-panel" spacing="12" alignment="TOP_CENTER" visible="false" managed="false">
-                <Label text="🏢 Gerenciar Fornecedores" styleClass="panel-title"/>
+                <Label text="Gerenciar Fornecedores" styleClass="panel-title"/>
                 <TextField fx:id="nomeFornecedorField" promptText="Nome do Fornecedor"/>
                 <TextField fx:id="cnpjField" promptText="CNPJ"/>
                 <TextField fx:id="telefoneField" promptText="Telefone"/>
                 <TextField fx:id="emailField" promptText="E-mail"/>
-                <Button fx:id="adicionarFornecedorBtn" text="✔ Adicionar / Salvar Fornecedor" onAction="#adicionarFornecedor" styleClass="button, secondary-color"/>
+                <Button fx:id="adicionarFornecedorBtn" text="✓ Adicionar / Salvar Fornecedor" onAction="#adicionarFornecedor" styleClass="button, secondary-color"/>
                 <Label text="Fornecedores Cadastrados:" styleClass="label"/>
                 <ListView fx:id="fornecedoresListView" prefHeight="200" styleClass="list-view"/>
                 <HBox spacing="5" alignment="CENTER">
-                    <Button fx:id="novoFornecedorBtn" text="➕ Novo" onAction="#novoFornecedor" styleClass="button, accent-color"/>
-                    <Button text="✎ Editar" onAction="#editarFornecedor" styleClass="button, warning-color"/>
-                    <Button text="🗑 Excluir" onAction="#excluirFornecedor" styleClass="button, error-color"/>
+                    <Button fx:id="novoFornecedorBtn" text="Novo" onAction="#novoFornecedor" styleClass="button, accent-color"/>
+                    <Button text="Editar" onAction="#editarFornecedor" styleClass="button, warning-color"/>
+                    <Button text="Excluir" onAction="#excluirFornecedor" styleClass="button, error-color"/>
                 </HBox>
             </VBox>
         </VBox>

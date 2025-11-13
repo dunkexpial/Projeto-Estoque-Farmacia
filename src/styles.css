@@ -73,6 +73,19 @@
     -fx-alignment: CENTER_LEFT;
 }
 
+.right-header-section {
+    -fx-spacing: 10;
+    -fx-alignment: CENTER;
+    -fx-min-width: 300px;
+    -fx-pref-width: 300px;
+}
+
+.total-label-header {
+    -fx-font-weight: bold;
+    -fx-text-fill: #DA1212;
+    -fx-font-size: 14px;
+}
+
 /* ====== Right VBox (painel lateral) ====== */
 .vbox {
     -fx-spacing: 0;
