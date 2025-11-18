@@ -79,13 +79,11 @@ public class Controller {
     private LoteDAO loteDAO = new LoteDAO();
     private LogDAO logDAO = new LogDAO();
 
-    // MEMORY CACHE - Armazena dados em memória para evitar consultas desnecessárias ao banco
-    private List<Fornecedor> cachedFornecedores = new ArrayList<>();
-    private List<LoteEstoque> cachedLotes = new ArrayList<>();
-    private Map<Integer, String> cachedImageUrls = new HashMap<>();
-    private long lastFornecedoresUpdate = 0;
-    private long lastLotesUpdate = 0;
-    private static final long CACHE_VALIDITY = 30000; // 30 segundos
+    // IN-MEMORY CACHE - Single source of truth
+    private List<Fornecedor> fornecedoresCache = new ArrayList<>();
+    private List<LoteEstoque> lotesCache = new ArrayList<>();
+    private Map<Integer, String> imageUrlsCache = new HashMap<>();
+    private boolean cacheLoaded = false;
 
     @FXML
     public void initialize() {
@@ -93,18 +91,90 @@ public class Controller {
         gridPane.setVgap(10);
         gridPane.setAlignment(Pos.TOP_LEFT);
 
-        // Carrega dados iniciais em cache
-        carregarDadosEmCache();
+        // Load all data once at startup
+        loadAllDataFromDatabase();
 
-        atualizarComboFornecedores();
-        atualizarListaFornecedores();
+        setupUIComponents();
+        setupEventListeners();
 
+        mostrarPainelLote();
+        updateGridDisplay();
+        Platform.runLater(() -> verificarEGerarAlertas());
+    }
+
+    // ==================== DATABASE LOADING (ONLY ONCE AT STARTUP) ====================
+
+    private void loadAllDataFromDatabase() {
+        try {
+            System.out.println("[CACHE] Carregando dados do banco de dados...");
+
+            // Load fornecedores
+            fornecedoresCache = fornecedorDAO.listarTodos();
+            System.out.println("[CACHE] Fornecedores carregados: " + fornecedoresCache.size());
+
+            // Load lotes with product names and images
+            List<Object[]> lotesComNome = loteDAO.listarTodosComNome();
+            lotesCache.clear();
+            imageUrlsCache.clear();
+
+            for (Object[] item : lotesComNome) {
+                LoteEstoque lote = (LoteEstoque) item[0];
+                String nomeProduto = (String) item[1];
+                String urlImagem = (String) item[2];
+
+                Produto produto = new Produto(lote.getIdProduto(), nomeProduto);
+                produto.setUrlImagem(urlImagem != null ? urlImagem : "med.png");
+                lote.setProduto(produto);
+
+                // Link fornecedor from cache
+                Fornecedor f = fornecedoresCache.stream()
+                        .filter(forn -> forn.getIdFornecedor() == lote.getIdFornecedor())
+                        .findFirst()
+                        .orElse(null);
+                lote.setFornecedor(f);
+
+                lotesCache.add(lote);
+                imageUrlsCache.put(lote.getIdLote(), urlImagem);
+            }
+
+            System.out.println("[CACHE] Lotes carregados: " + lotesCache.size());
+            cacheLoaded = true;
+
+        } catch (SQLException e) {
+            mostrarAlerta("Erro", "Erro ao carregar dados do banco: " + e.getMessage());
+            e.printStackTrace();
+            cacheLoaded = false;
+        }
+    }
+
+    private void reloadFromDatabase() {
+        System.out.println("[CACHE] Recarregando dados do banco após alteração...");
+        loadAllDataFromDatabase();
+    }
+
+    // ==================== UI SETUP ====================
+
+    private void setupUIComponents() {
         setSupplierFieldsEditable(false);
 
         if (adicionarFornecedorBtn != null) {
             adicionarFornecedorBtn.setDisable(false);
         }
 
+        sortCombo.getItems().addAll("Produto", "Quantidade", "Validade");
+        sortCombo.setValue("Produto");
+        filterCombo.getItems().addAll("Todos", "Vencidos", "Ativos");
+        filterCombo.setValue("Todos");
+
+        updateFornecedorComboBox();
+        updateFornecedorListView();
+
+        configurarFormatacaoData(validadeField);
+        configurarFormatacaoData(dataEntradaField);
+    }
+
+    private void setupEventListeners() {
+        // Fornecedor selection
         fornecedoresListView.getSelectionModel().selectedItemProperty().addListener((obs, oldSelection, newSelection) -> {
             if (newSelection != null) {
                 nomeFornecedorField.setText(newSelection.getNome());
@@ -124,18 +194,12 @@ public class Controller {
             }
         });
 
-        sortCombo.getItems().addAll("Produto", "Quantidade", "Validade");
-        sortCombo.setValue("Produto");
-        filterCombo.getItems().addAll("Todos", "Vencidos", "Ativos");
-        filterCombo.setValue("Todos");
+        // Search and filter listeners - only update display, no DB access
+        searchField.textProperty().addListener((obs, oldV, newV) -> updateGridDisplay());
+        sortCombo.valueProperty().addListener((obs, oldV, newV) -> updateGridDisplay());
+        filterCombo.valueProperty().addListener((obs, oldV, newV) -> updateGridDisplay());
 
-        searchField.textProperty().addListener((obs, oldV, newV) -> refreshGridFromCache());
-        sortCombo.valueProperty().addListener((obs, oldV, newV) -> refreshGridFromCache());
-        filterCombo.valueProperty().addListener((obs, oldV, newV) -> refreshGridFromCache());
-
-        configurarFormatacaoData(validadeField);
-        configurarFormatacaoData(dataEntradaField);
-
+        // Button actions
         editarSelecionadoBtn.setOnAction(e -> {
             if (selectedLote != null) editarLote(selectedLote);
         });
@@ -144,80 +208,8 @@ public class Controller {
             if (selectedLote != null) {
                 excluirLote(selectedLote);
                 selectedLote = null;
-                refreshGrid();
             }
         });
-
-        mostrarPainelLote();
-        refreshGrid();
-        Platform.runLater(() -> verificarEGerarAlertas());
-    }
-
-    // METODO PARA CARREGAR TODOS OS DADOS EM CACHE
-    private void carregarDadosEmCache() {
-        try {
-            // Carrega fornecedores
-            cachedFornecedores = fornecedorDAO.listarTodos();
-            lastFornecedoresUpdate = System.currentTimeMillis();
-
-            // Carrega lotes
-            List<Object[]> lotesComNome = loteDAO.listarTodosComNome();
-            cachedLotes.clear();
-            cachedImageUrls.clear();
-
-            for (Object[] item : lotesComNome) {
-                LoteEstoque lote = (LoteEstoque) item[0];
-                String nomeProduto = (String) item[1];
-                String urlImagem = (String) item[2];
-
-                Produto produto = new Produto(lote.getIdProduto(), nomeProduto);
-                produto.setUrlImagem(urlImagem != null ? urlImagem : "med.png");
-                lote.setProduto(produto);
-
-                // Vincular fornecedor do cache
-                Fornecedor f = cachedFornecedores.stream()
-                        .filter(forn -> forn.getIdFornecedor() == lote.getIdFornecedor())
-                        .findFirst()
-                        .orElse(null);
-                lote.setFornecedor(f);
-
-                cachedLotes.add(lote);
-                cachedImageUrls.put(lote.getIdLote(), urlImagem);
-            }
-
-            lastLotesUpdate = System.currentTimeMillis();
-            System.out.println("Cache carregado: " + cachedFornecedores.size() + " fornecedores, " + cachedLotes.size() + " lotes");
-        } catch (SQLException e) {
-            mostrarAlerta("Erro", "Erro ao carregar dados em cache: " + e.getMessage());
-            e.printStackTrace();
-        }
-    }
-
-    // METODO PARA ATUALIZAR CACHE DE FORNECEDORES SE NECESSARIO
-    private void atualizarCacheFornecedoresSeNecessario() {
-        long now = System.currentTimeMillis();
-        if (now - lastFornecedoresUpdate > CACHE_VALIDITY) {
-            try {
-                cachedFornecedores = fornecedorDAO.listarTodos();
-                lastFornecedoresUpdate = now;
-            } catch (SQLException e) {
-                e.printStackTrace();
-            }
-        }
-    }
-
-    // METODO PARA ATUALIZAR CACHE DE LOTES SE NECESSARIO
-    private void atualizarCacheLotesSeNecessario() {
-        long now = System.currentTimeMillis();
-        if (now - lastLotesUpdate > CACHE_VALIDITY) {
-            carregarDadosEmCache();
-        }
-    }
-
-    // METODO PARA FORCAR ATUALIZACAO DO CACHE APOS OPERACOES DE ESCRITA
-    private void invalidarCache() {
-        lastFornecedoresUpdate = 0;
-        lastLotesUpdate = 0;
     }
 
     private void configurarFormatacaoData(TextField field) {
@@ -261,8 +253,6 @@ public class Controller {
         try {
             logDAO.inserir(log);
             System.out.println("[LOG SALVO] " + tipoOperacao + " em " + entidade + ": " + descricao);
-
-            // Mantém apenas os 50 logs mais recentes
             limparLogsAntigos();
         } catch (SQLException e) {
             System.err.println("Falha ao salvar log: " + e.getMessage());
@@ -274,11 +264,9 @@ public class Controller {
         try {
             int totalLogs = logDAO.contarTotal();
 
-            // Se tiver mais de 50 logs, remove os mais antigos
             if (totalLogs > 50) {
                 int quantidadeParaRemover = totalLogs - 50;
 
-                // Busca os logs mais antigos para remover
                 String sql = "DELETE FROM log_alteracoes WHERE id_log IN " +
                         "(SELECT id_log FROM (SELECT id_log FROM log_alteracoes " +
                         "ORDER BY data_hora ASC LIMIT ?) AS logs_antigos)";
@@ -548,6 +536,7 @@ public class Controller {
         if (validade != null && entrada != null) {
             try {
                 if (editingLote != null) {
+                    // EDITING EXISTING LOTE
                     int qtdAnterior = editingLote.getQuantidadeAtual();
                     String imagemAnterior = editingLote.getProduto().getUrlImagem();
                     String imagemNova = imagemSelecionada != null ? imagemSelecionada : imagemAnterior;
@@ -579,6 +568,7 @@ public class Controller {
                         descricaoLog.append(" Alteracoes: ").append(String.join(", ", mudancas));
                     }
 
+                    // Update in database
                     editingLote.setNumeroLote(numeroLote);
                     editingLote.setQuantidadeAtual(qtd);
                     editingLote.setDataEntrada(entrada);
@@ -596,8 +586,15 @@ public class Controller {
                     loteDAO.atualizar(editingLote, nomeProduto, imagemNova);
                     registrarLog("EDITAR", "LOTE", descricaoLog.toString());
 
+                    // Update in-memory cache
+                    editingLote.getProduto().setNome(nomeProduto);
+                    editingLote.setFornecedor(fornecedorSelecionado);
+                    imageUrlsCache.put(editingLote.getIdLote(), imagemNova);
+
                     editingLote = null;
+
                 } else {
+                    // CREATING NEW LOTE
                     String urlImagem = imagemSelecionada != null ? imagemSelecionada : "med.png";
 
                     LoteEstoque novoLote = new LoteEstoque(
@@ -616,11 +613,13 @@ public class Controller {
                             imagemSelecionada != null ? ", com imagem personalizada" : ""
                     );
                     registrarLog("CRIAR", "LOTE", descricaoLog);
+
+                    // Reload from database to get the new ID and add to cache
+                    reloadFromDatabase();
                 }
 
                 limparCamposLote();
-                invalidarCache(); // Força recarregar do banco
-                refreshGrid();
+                updateGridDisplay();
 
             } catch (SQLException e) {
                 mostrarAlerta("Erro", "Erro ao salvar lote: " + e.getMessage());
@@ -629,7 +628,6 @@ public class Controller {
         }
     }
 
-    @FXML
     private void excluirLote(LoteEstoque lote) {
         try {
             String descricaoLog = String.format(
@@ -645,12 +643,17 @@ public class Controller {
                 }
             }
 
+            // Delete from database
             loteDAO.excluir(lote.getIdLote());
             registrarLog("EXCLUIR", "LOTE", descricaoLog);
 
+            // Remove from in-memory cache
+            lotesCache.removeIf(l -> l.getIdLote() == lote.getIdLote());
+            imageUrlsCache.remove(lote.getIdLote());
+
             limparCamposLote();
-            invalidarCache(); // Força recarregar do banco
-            refreshGrid();
+            updateGridDisplay();
+
         } catch (SQLException e) {
             mostrarAlerta("Erro", "Erro ao excluir lote: " + e.getMessage());
             e.printStackTrace();
@@ -673,8 +676,6 @@ public class Controller {
             imagemSelecionadaLabel.setText("Nenhuma imagem selecionada");
             imagemSelecionadaLabel.setStyle("-fx-text-fill: #666666; -fx-font-style: italic;");
         }
-
-        refreshGridFromCache();
     }
 
     @FXML
@@ -714,13 +715,13 @@ public class Controller {
         }
 
         System.out.println("Editando lote: " + lote.getNumeroLote());
-        refreshGridFromCache();
+        updateGridDisplay();
     }
 
     @FXML
     private void desselecionarLote() {
         selectedLote = null;
-        refreshGridFromCache();
+        updateCardStyling();
     }
 
     // ==================== GERENCIAMENTO DE FORNECEDORES ====================
@@ -742,6 +743,7 @@ public class Controller {
 
         try {
             if (editingFornecedor != null) {
+                // EDITING EXISTING FORNECEDOR
                 String descricaoLog = String.format(
                         "Fornecedor '%s' editado. CNPJ: %s, Telefone: %s, Email: %s",
                         nome, cnpj, telefone, email
@@ -754,8 +756,13 @@ public class Controller {
 
                 fornecedorDAO.atualizar(editingFornecedor);
                 registrarLog("EDITAR", "FORNECEDOR", descricaoLog);
+
+                // Update in-memory cache - object is already updated by reference
+
                 editingFornecedor = null;
+
             } else {
+                // CREATING NEW FORNECEDOR
                 if (!cnpj.isEmpty() && fornecedorDAO.cnpjJaExiste(cnpj, 0)) {
                     mostrarAlerta("Erro", "CNPJ ja cadastrado!");
                     if (adicionarFornecedorBtn != null) {
@@ -772,13 +779,15 @@ public class Controller {
                         nome, cnpj, telefone, email
                 );
                 registrarLog("CRIAR", "FORNECEDOR", descricaoLog);
+
+                // Reload from database to get the new ID
+                reloadFromDatabase();
             }
 
             limparCamposFornecedor();
             setSupplierFieldsEditable(false);
-            invalidarCache(); // Força recarregar do banco
-            atualizarComboFornecedores();
-            atualizarListaFornecedores();
+            updateFornecedorComboBox();
+            updateFornecedorListView();
 
         } catch (SQLException e) {
             mostrarAlerta("Erro", "Erro ao salvar fornecedor: " + e.getMessage());
@@ -799,8 +808,8 @@ public class Controller {
         }
 
         try {
-            // Verifica no cache primeiro
-            boolean temLotes = cachedLotes.stream()
+            // Check in memory cache first
+            boolean temLotes = lotesCache.stream()
                     .anyMatch(lote -> lote.getIdFornecedor() == selecionado.getIdFornecedor());
 
             if (temLotes) {
@@ -813,14 +822,18 @@ public class Controller {
                     selecionado.getNome(), selecionado.getCnpj()
             );
 
+            // Delete from database
             fornecedorDAO.excluir(selecionado.getIdFornecedor());
             registrarLog("EXCLUIR", "FORNECEDOR", descricaoLog);
 
+            // Remove from in-memory cache
+            fornecedoresCache.removeIf(f -> f.getIdFornecedor() == selecionado.getIdFornecedor());
+
             limparCamposFornecedor();
             setSupplierFieldsEditable(false);
-            invalidarCache(); // Força recarregar do banco
-            atualizarComboFornecedores();
-            atualizarListaFornecedores();
+            updateFornecedorComboBox();
+            updateFornecedorListView();
+
         } catch (SQLException e) {
             mostrarAlerta("Erro", "Erro ao excluir fornecedor: " + e.getMessage());
             e.printStackTrace();
@@ -865,17 +878,15 @@ public class Controller {
         }
     }
 
-    private void atualizarComboFornecedores() {
+    private void updateFornecedorComboBox() {
         if (fornecedorCombo != null) {
-            atualizarCacheFornecedoresSeNecessario();
-            fornecedorCombo.setItems(javafx.collections.FXCollections.observableArrayList(cachedFornecedores));
+            fornecedorCombo.setItems(javafx.collections.FXCollections.observableArrayList(fornecedoresCache));
         }
     }
 
-    private void atualizarListaFornecedores() {
+    private void updateFornecedorListView() {
         if (fornecedoresListView != null) {
-            atualizarCacheFornecedoresSeNecessario();
-            fornecedoresListView.setItems(javafx.collections.FXCollections.observableArrayList(cachedFornecedores));
+            fornecedoresListView.setItems(javafx.collections.FXCollections.observableArrayList(fornecedoresCache));
         }
     }
 
@@ -891,9 +902,10 @@ public class Controller {
             int qtdAnterior = lote.getQuantidadeAtual();
             int novaQuantidade = qtdAnterior + quantidade;
 
+            // Update in database
             loteDAO.atualizarQuantidade(lote.getIdLote(), novaQuantidade);
 
-            // Atualiza no cache
+            // Update in-memory cache
             lote.setQuantidadeAtual(novaQuantidade);
 
             String descricaoLog = String.format(
@@ -902,7 +914,8 @@ public class Controller {
             );
             registrarLog("EDITAR", "LOTE", descricaoLog);
 
-            refreshGridFromCache();
+            updateGridDisplay();
+
         } catch (SQLException e) {
             mostrarAlerta("Erro", "Erro ao atualizar quantidade: " + e.getMessage());
             e.printStackTrace();
@@ -915,9 +928,10 @@ public class Controller {
                 int qtdAnterior = lote.getQuantidadeAtual();
                 int novaQuantidade = qtdAnterior - quantidade;
 
+                // Update in database
                 loteDAO.atualizarQuantidade(lote.getIdLote(), novaQuantidade);
 
-                // Atualiza no cache
+                // Update in-memory cache
                 lote.setQuantidadeAtual(novaQuantidade);
 
                 String descricaoLog = String.format(
@@ -926,7 +940,8 @@ public class Controller {
                 );
                 registrarLog("EDITAR", "LOTE", descricaoLog);
 
-                refreshGridFromCache();
+                updateGridDisplay();
+
             } catch (SQLException e) {
                 mostrarAlerta("Erro", "Erro ao atualizar quantidade: " + e.getMessage());
                 e.printStackTrace();
@@ -935,12 +950,10 @@ public class Controller {
     }
 
     private void verificarEGerarAlertas() {
-        atualizarCacheLotesSeNecessario();
-
         List<String> alertas = new java.util.ArrayList<>();
         LocalDate hoje = LocalDate.now();
 
-        for (LoteEstoque lote : cachedLotes) {
+        for (LoteEstoque lote : lotesCache) {
             String nomeProduto = lote.getProduto().getNome();
 
             if (lote.getQuantidadeAtual() < lote.getAlertThreshold()) {
@@ -995,17 +1008,21 @@ public class Controller {
         alert.showAndWait();
     }
 
-    // METODO OTIMIZADO: Usa cache em vez de consultar banco
-    private void refreshGridFromCache() {
-        gridPane.getChildren().clear();
+    // ==================== DISPLAY UPDATE (NO DATABASE ACCESS) ====================
 
-        atualizarCacheLotesSeNecessario();
+    /**
+     * Updates the grid display using only in-memory cache data.
+     * NO DATABASE ACCESS - pure memory operations for instant response.
+     */
+    private void updateGridDisplay() {
+        gridPane.getChildren().clear();
 
         String search = searchField.getText().toLowerCase();
         String filter = filterCombo.getValue();
         String sort = sortCombo.getValue();
 
-        List<LoteEstoque> list = cachedLotes.stream()
+        // Filter and sort from memory cache
+        List<LoteEstoque> list = lotesCache.stream()
                 .filter(l -> l.getProduto().getNome().toLowerCase().contains(search) ||
                         (l.getFornecedor() != null && l.getFornecedor().getNome().toLowerCase().contains(search)))
                 .filter(l -> {
@@ -1031,46 +1048,36 @@ public class Controller {
         totalLabel.setText("Total: " + total);
     }
 
-    // METODO ORIGINAL: Consulta banco (usado após operações de escrita)
-    private void refreshGrid() {
-        gridPane.getChildren().clear();
+    /**
+     * Updates only the visual styling of cards without rebuilding the entire grid.
+     * Used for selection changes - FASTEST possible update, no DOM manipulation.
+     */
+    private void updateCardStyling() {
+        for (javafx.scene.Node node : gridPane.getChildren()) {
+            if (node instanceof VBox) {
+                VBox card = (VBox) node;
+                LoteEstoque cardLote = (LoteEstoque) card.getUserData();
 
-        carregarDadosEmCache(); // Recarrega do banco
+                if (cardLote == null) continue;
 
-        String search = searchField.getText().toLowerCase();
-        String filter = filterCombo.getValue();
-        String sort = sortCombo.getValue();
+                card.getStyleClass().removeAll("selected", "editing");
 
-        List<LoteEstoque> list = cachedLotes.stream()
-                .filter(l -> l.getProduto().getNome().toLowerCase().contains(search) ||
-                        (l.getFornecedor() != null && l.getFornecedor().getNome().toLowerCase().contains(search)))
-                .filter(l -> {
-                    if ("Vencidos".equals(filter)) return l.getDataValidade().isBefore(LocalDate.now());
-                    if ("Ativos".equals(filter)) return !l.getDataValidade().isBefore(LocalDate.now());
-                    return true;
-                })
-                .collect(Collectors.toList());
-
-        Comparator<LoteEstoque> comparator;
-        switch (sort) {
-            case "Quantidade": comparator = Comparator.comparingInt(LoteEstoque::getQuantidadeAtual); break;
-            case "Validade": comparator = Comparator.comparing(LoteEstoque::getDataValidade); break;
-            default: comparator = Comparator.comparing(l -> l.getProduto().getNome()); break;
+                if (editingLote != null && cardLote.getIdLote() == editingLote.getIdLote()) {
+                    card.getStyleClass().add("editing");
+                } else if (selectedLote != null && cardLote.getIdLote() == selectedLote.getIdLote()) {
+                    card.getStyleClass().add("selected");
+                }
+            }
         }
-        list.sort(comparator);
-
-        for (LoteEstoque lote : list) {
-            gridPane.getChildren().add(createCard(lote));
-        }
-
-        int total = list.stream().mapToInt(LoteEstoque::getQuantidadeAtual).sum();
-        totalLabel.setText("Total: " + total);
     }
 
     private VBox createCard(LoteEstoque lote) {
         VBox itemBox = new VBox(8);
         itemBox.setAlignment(Pos.CENTER);
         itemBox.getStyleClass().add("card");
+
+        // Store lote reference for quick access
+        itemBox.setUserData(lote);
 
         Produto produto = lote.getProduto();
         Fornecedor fornecedor = lote.getFornecedor();
@@ -1143,20 +1150,16 @@ public class Controller {
         itemBox.getChildren().addAll(imageView, nameLabel, batchLabel,
                 fornecedorLabel, qtyLabel, dateLabel, buttons);
 
-        // Sistema de seleção otimizado - não consulta banco
+        // OPTIMIZED CLICK HANDLER - Only updates styling, no database access
         itemBox.setCursor(javafx.scene.Cursor.HAND);
 
         itemBox.setOnMouseClicked(e -> {
-            System.out.println("DEBUG: Card clicado: " + lote.getNumeroLote());
-            System.out.println("DEBUG: selectedLote atual: " + (selectedLote != null ? selectedLote.getNumeroLote() : "null"));
-            System.out.println("DEBUG: editingLote atual: " + (editingLote != null ? editingLote.getNumeroLote() : "null"));
-
-            if (editingLote != null && editingLote != lote) {
+            if (editingLote != null && editingLote.getIdLote() != lote.getIdLote()) {
                 mostrarAlerta("Aviso", "Termine de editar o lote atual antes de selecionar outro!");
                 return;
             }
 
-            if (selectedLote == lote) {
+            if (selectedLote != null && selectedLote.getIdLote() == lote.getIdLote()) {
                 selectedLote = null;
                 System.out.println("Lote desselecionado: " + lote.getNumeroLote());
             } else {
@@ -1164,15 +1167,15 @@ public class Controller {
                 System.out.println("Lote selecionado: " + lote.getNumeroLote() + " - " + produto.getNome());
             }
 
-            refreshGridFromCache(); // Usa cache, não consulta banco
+            // INSTANT UPDATE - only changes CSS classes, no database or DOM rebuild
+            updateCardStyling();
         });
 
+        // Apply initial styling
         if (editingLote != null && lote.getIdLote() == editingLote.getIdLote()) {
             itemBox.getStyleClass().add("editing");
-            System.out.println("Card em modo edicao: " + lote.getNumeroLote());
         } else if (selectedLote != null && lote.getIdLote() == selectedLote.getIdLote()) {
             itemBox.getStyleClass().add("selected");
-            System.out.println("Card selecionado visualmente: " + lote.getNumeroLote());
         }
 
         return itemBox;

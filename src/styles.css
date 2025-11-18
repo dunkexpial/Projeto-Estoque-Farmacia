@@ -1,28 +1,28 @@
-/* ====== Cores principais ====== */
-.primary-color { -fx-fill: #DA1212 ; -fx-background-color: #DA1212  !important; }
-.secondary-color { -fx-fill: #ad0f0f ; -fx-background-color: #ad0f0f !important; }
-.accent-color { -fx-fill: #2196F3; -fx-background-color: #2196F3 !important; }
-.error-color { -fx-fill: #FF0000; -fx-background-color: #FF0000 !important; }
-.warning-color { -fx-fill: #FFA500; -fx-background-color: #FFA500 !important; }
-.background-color { -fx-background-color: #F5F5F5; }
-.card-background { -fx-background-color: #E8ECEF; }
-.edit-background { -fx-background-color: #BBDEFB; }
-.border-color { -fx-border-color: #E0E0E0; }
-.text-color { -fx-text-fill: #333333; }
-.gray-text { -fx-text-fill: #555555; }
+/* ====== Cores principais - Dark Theme ====== */
+.primary-color { -fx-fill: #FF4444 ; -fx-background-color: #FF4444  !important; }
+.secondary-color { -fx-fill: #FF6B6B ; -fx-background-color: #FF6B6B !important; }
+.accent-color { -fx-fill: #42A5F5; -fx-background-color: #42A5F5 !important; }
+.error-color { -fx-fill: #FF5252; -fx-background-color: #FF5252 !important; }
+.warning-color { -fx-fill: #FFB74D; -fx-background-color: #FFB74D !important; }
+.background-color { -fx-background-color: #1E1E1E; }
+.card-background { -fx-background-color: #2D2D2D; }
+.edit-background { -fx-background-color: #1E3A5F; }
+.border-color { -fx-border-color: #3A3A3A; }
+.text-color { -fx-text-fill: #E0E0E0; }
+.gray-text { -fx-text-fill: #B0B0B0; }
 
 /* ====== BorderPane geral ====== */
 .border-pane {
-    -fx-background-color: #F5F5F5;
+    -fx-background-color: #1E1E1E;
     -fx-font-family: 'Segoe UI', 'Roboto', sans-serif;
     -fx-font-size: 13px;
 }
 
 /* ====== Top HBox (barra de busca e filtros) ====== */
 .hbox {
-    -fx-background-color: #FFFFFF;
+    -fx-background-color: #252525;
     -fx-padding: 10;
-    -fx-border-color: #E0E0E0;
+    -fx-border-color: #3A3A3A;
     -fx-border-width: 0 0 1 0;
     -fx-spacing: 10;
     -fx-alignment: CENTER_LEFT;
@@ -32,34 +32,46 @@
 .label#title {
     -fx-font-size: 18px;
     -fx-font-weight: bold;
+    -fx-text-fill: #E0E0E0;
 }
 
 /* Field labels */
 .label {
     -fx-font-weight: bold;
     -fx-font-size: 11px;
+    -fx-text-fill: #B0B0B0;
 }
 
 /* TextFields e ComboBoxes */
 .text-field, .combo-box {
-    -fx-background-color: #FFFFFF;
-    -fx-border-color: #ccc;
+    -fx-background-color: #2D2D2D;
+    -fx-text-fill: #E0E0E0;
+    -fx-border-color: #444444;
     -fx-border-radius: 6;
     -fx-background-radius: 6;
     -fx-padding: 5 8 5 8;
 }
 
+.combo-box .list-cell {
+    -fx-background-color: #2D2D2D;
+    -fx-text-fill: #E0E0E0;
+}
+
+.text-field:focused, .combo-box:focused {
+    -fx-border-color: #42A5F5;
+}
+
 /* Total label */
 .label#totalLabel {
     -fx-font-weight: bold;
-    -fx-text-fill: #DA1212;
+    -fx-text-fill: #FF4444;
     -fx-font-size: 14px;
 }
 
 /* ScrollPane e TilePane para grid */
 .scroll-pane {
     -fx-background: transparent;
-    -fx-background-color: #F5F5F5;
+    -fx-background-color: #1E1E1E;
     -fx-background-insets: 0;
     -fx-background-radius: 0;
     -fx-focus-color: transparent;
@@ -82,7 +94,7 @@
 
 .total-label-header {
     -fx-font-weight: bold;
-    -fx-text-fill: #DA1212;
+    -fx-text-fill: #FF4444;
     -fx-font-size: 14px;
 }
 
@@ -90,9 +102,9 @@
 .vbox {
     -fx-spacing: 0;
     -fx-alignment: TOP_CENTER;
-    -fx-background-color: #FFFFFF;
+    -fx-background-color: #252525;
     -fx-background-radius: 0;
-    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.15), 8, 0, 0, 2);
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.5), 8, 0, 0, 2);
 }
 
 /* Toggle buttons HBox */
@@ -104,7 +116,7 @@
 
 /* Toggle buttons */
 .toggle-button#gerenciarLotesBtn {
-    -fx-background-color: derive(#DA1212, 20%);
+    -fx-background-color: derive(#FF4444, -20%);
     -fx-text-fill: white;
     -fx-font-weight: bold;
     -fx-background-radius: 6 0 0 6;
@@ -114,13 +126,13 @@
 }
 
 .toggle-button#gerenciarLotesBtn:selected {
-    -fx-background-color: #DA1212;
+    -fx-background-color: #FF4444;
     -fx-opacity: 1.0;
-    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.3), 5, 0, 0, 2);
+    -fx-effect: dropshadow(gaussian, rgba(255,68,68,0.4), 5, 0, 0, 2);
 }
 
 .toggle-button#gerenciarFornecedoresBtn {
-    -fx-background-color: derive(#4CAF50, 20%);
+    -fx-background-color: derive(#66BB6A, -20%);
     -fx-text-fill: white;
     -fx-font-weight: bold;
     -fx-background-radius: 0 6 6 0;
@@ -130,9 +142,9 @@
 }
 
 .toggle-button#gerenciarFornecedoresBtn:selected {
-    -fx-background-color: #4CAF50;
+    -fx-background-color: #66BB6A;
     -fx-opacity: 1.0;
-    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.3), 5, 0, 0, 2);
+    -fx-effect: dropshadow(gaussian, rgba(102,187,106,0.4), 5, 0, 0, 2);
 }
 
 /* Painéis */
@@ -149,11 +161,11 @@
 }
 
 .panel-title.primary-color {
-    -fx-text-fill: #DA1212;
+    -fx-text-fill: #FF4444;
 }
 
 .panel-title.secondary-color {
-    -fx-text-fill: #4CAF50;
+    -fx-text-fill: #66BB6A;
 }
 
 /* Botões padrão */
@@ -167,89 +179,113 @@
 }
 
 /* Botões específicos */
-.button.primary-color { -fx-background-color: #DA1212; -fx-padding: 6 12 }
-.button.secondary-color { -fx-background-color: #4CAF50; -fx-padding: 6 12 }
-.button.accent-color { -fx-background-color: #2196F3; -fx-padding: 6 12; }
-.button.warning-color { -fx-background-color: #FFA500; -fx-padding: 6 12; }
-.button.error-color { -fx-background-color: #FF0000; -fx-padding: 6 12; }
+.button.primary-color { -fx-background-color: #FF4444; -fx-padding: 6 12 }
+.button.secondary-color { -fx-background-color: #66BB6A; -fx-padding: 6 12 }
+.button.accent-color { -fx-background-color: #42A5F5; -fx-padding: 6 12; }
+.button.warning-color { -fx-background-color: #FFB74D; -fx-padding: 6 12; }
+.button.error-color { -fx-background-color: #FF5252; -fx-padding: 6 12; }
 
 .button.accent-color:hover {
-    -fx-background-color: #1976D2;
+    -fx-background-color: #2196F3;
+}
+
+.button.primary-color:hover {
+    -fx-background-color: #FF6B6B;
+}
+
+.button.secondary-color:hover {
+    -fx-background-color: #81C784;
 }
 
 /* ListView de fornecedores */
 .list-view {
-    -fx-border-color: #ccc;
+    -fx-background-color: #2D2D2D;
+    -fx-border-color: #444444;
     -fx-border-radius: 6;
     -fx-background-radius: 6;
+}
+
+.list-cell {
+    -fx-background-color: #2D2D2D;
+    -fx-text-fill: #E0E0E0;
+}
+
+.list-cell:hover {
+    -fx-background-color: #353535;
+}
+
+.list-cell:selected {
+    -fx-background-color: #42A5F5;
+    -fx-text-fill: white;
 }
 
 /* ====== Cards com Feedback Visual Aprimorado ====== */
 
 /* Estado Normal - Card Padrão */
 .card {
-    -fx-background-color: #E8ECEF;
+    -fx-background-color: #2D2D2D;
     -fx-padding: 15;
     -fx-border-radius: 10;
     -fx-background-radius: 10;
     -fx-border-width: 3;
     -fx-border-color: transparent;
-    -fx-effect: dropshadow(two-pass-box, rgba(0,0,0,0.2), 5, 0, 0, 3);
+    -fx-effect: dropshadow(two-pass-box, rgba(0,0,0,0.6), 5, 0, 0, 3);
     -fx-alignment: CENTER;
 }
 
 /* Estado Selecionado - Fundo Escuro ⭐ */
 .card.selected {
-    -fx-background-color: #c4cad1 !important;
+    -fx-background-color: #3A3A3A !important;
     -fx-border-color: transparent !important;
     -fx-border-width: 3 !important;
-    -fx-effect: dropshadow(two-pass-box, rgba(0,0,0,0.3), 8, 0, 0, 4) !important;
+    -fx-effect: dropshadow(two-pass-box, rgba(0,0,0,0.8), 8, 0, 0, 4) !important;
 }
 
 /* Estado Editando - Fundo Azul ✏️ */
 .card.editing {
-    -fx-background-color: #BBDEFB !important;
+    -fx-background-color: #1E3A5F !important;
     -fx-border-color: transparent !important;
     -fx-border-width: 3 !important;
-    -fx-effect: dropshadow(two-pass-box, rgba(0,0,0,0.3), 8, 0, 0, 4) !important;
+    -fx-effect: dropshadow(two-pass-box, rgba(66,165,245,0.5), 8, 0, 0, 4) !important;
 }
 
 /* Labels dentro do card */
-.card .label { -fx-font-size: 13px; -fx-text-fill: #333333; }
-.card .name { -fx-font-weight: bold; -fx-font-size: 14px; }
-.card .batch { -fx-text-fill: #555555; }
-.card .fornecedor { -fx-font-size: 12px; -fx-text-fill: #555555; }
-.card .quantity.low { -fx-font-weight: bold; -fx-text-fill: #FF0000; }
-.card .quantity.warning { -fx-font-weight: bold; -fx-text-fill: #FFA500; }
-.card .validity.expired { -fx-font-weight: bold; -fx-text-fill: #FF0000; }
-.card .validity.near { -fx-font-weight: bold; -fx-text-fill: #FFA500; }
+.card .label { -fx-font-size: 13px; -fx-text-fill: #E0E0E0; }
+.card .name { -fx-font-weight: bold; -fx-font-size: 14px; -fx-text-fill: #FFFFFF; }
+.card .batch { -fx-text-fill: #B0B0B0; }
+.card .fornecedor { -fx-font-size: 12px; -fx-text-fill: #B0B0B0; }
+.card .quantity.low { -fx-font-weight: bold; -fx-text-fill: #FF5252; }
+.card .quantity.warning { -fx-font-weight: bold; -fx-text-fill: #FFB74D; }
+.card .validity.expired { -fx-font-weight: bold; -fx-text-fill: #FF5252; }
+.card .validity.near { -fx-font-weight: bold; -fx-text-fill: #FFB74D; }
 
 /* Botões dentro do card */
-.card .button { -fx-background-color: #DA1212; -fx-text-fill: white; -fx-font-weight: bold; }
-.card .button.error-color { -fx-background-color: #FF0000 !important; }
+.card .button { -fx-background-color: #FF4444; -fx-text-fill: white; -fx-font-weight: bold; }
+.card .button.error-color { -fx-background-color: #FF5252 !important; }
 
 /* Scrollbars */
 .scroll-bar:vertical, .scroll-bar:horizontal { -fx-pref-width: 12; -fx-background-color: transparent; }
-.scroll-bar .track { -fx-background-color: #E0E0E0; -fx-background-radius: 6; }
-.scroll-bar .thumb { -fx-background-color: #ad0f0f; -fx-background-radius: 6; -fx-background-insets: 2; }
-.scroll-bar .thumb:hover { -fx-background-color: #DA1212; }
+.scroll-bar .track { -fx-background-color: #2D2D2D; -fx-background-radius: 6; }
+.scroll-bar .thumb { -fx-background-color: #FF4444; -fx-background-radius: 6; -fx-background-insets: 2; }
+.scroll-bar .thumb:hover { -fx-background-color: #FF6B6B; }
 .scroll-bar .increment-button, .scroll-bar .decrement-button { -fx-background-color: transparent; -fx-pref-height: 0; -fx-pref-width: 0; }
 .scroll-bar .increment-arrow, .scroll-bar .decrement-arrow { -fx-padding: 0; }
 
 /* Notification styles */
 .notification-content {
     -fx-padding: 15;
+    -fx-background-color: #252525;
 }
 
 .notification-title {
     -fx-font-size: 18px;
     -fx-font-weight: bold;
-    -fx-text-fill: #DA1212;
+    -fx-text-fill: #FF4444;
 }
 
 .alert-container {
-    -fx-background-color: #F3F3F3;
-    -fx-border-color: #E0E0E0;
+    -fx-background-color: #2D2D2D;
+    -fx-border-color: #444444;
     -fx-border-width: 1;
     -fx-border-radius: 5;
     -fx-background-radius: 5;
@@ -258,14 +294,14 @@
 
 .alert-label {
     -fx-font-size: 14px;
-    -fx-text-fill: black;
+    -fx-text-fill: #E0E0E0;
 }
 
 .notification-scroll {
-    -fx-background-color: white;
+    -fx-background-color: #252525;
     -fx-border-radius: 10;
     -fx-background-radius: 10;
-    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.15), 8, 0, 0, 2);
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.5), 8, 0, 0, 2);
     -fx-focus-color: transparent;
     -fx-faint-focus-color: transparent;
 }
@@ -274,17 +310,17 @@
 
 /* Preview da imagem */
 .vbox-panel ImageView {
-    -fx-background-color: #F5F5F5;
-    -fx-border-color: #ccc;
+    -fx-background-color: #2D2D2D;
+    -fx-border-color: #444444;
     -fx-border-width: 2;
     -fx-border-radius: 8;
-    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 5, 0, 0, 2);
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.5), 5, 0, 0, 2);
 }
 
 /* Label de status da imagem */
 .image-label {
     -fx-font-size: 11px;
-    -fx-text-fill: #666666;
+    -fx-text-fill: #999999;
     -fx-font-style: italic;
 }
 
@@ -302,5 +338,5 @@
 .card ImageView {
     -fx-background-color: transparent;
     -fx-border-color: transparent;
-    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.15), 3, 0, 0, 1);
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.4), 3, 0, 0, 1);
 }
