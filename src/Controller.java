@@ -1625,6 +1625,7 @@ public class Controller {
     }
 
     // Método auxiliar para criar janelas com barra de título customizada
+    // Método auxiliar para criar janelas com barra de título customizada
     private Stage createCustomStage(String title, javafx.scene.Node content, double width, double height) {
         Stage customStage = new Stage();
         customStage.initStyle(StageStyle.TRANSPARENT);
@@ -1634,6 +1635,14 @@ public class Controller {
 
         BorderPane mainPane = new BorderPane();
         mainPane.getStyleClass().add("border-pane");
+
+        // ADICIONA SOMBRA EXTERNA À JANELA
+        javafx.scene.effect.DropShadow dropShadow = new javafx.scene.effect.DropShadow();
+        dropShadow.setRadius(25);
+        dropShadow.setOffsetX(0);
+        dropShadow.setOffsetY(8);
+        dropShadow.setColor(javafx.scene.paint.Color.rgb(0, 0, 0, 0.6));
+        mainPane.setEffect(dropShadow);
 
         HBox customTitleBar = new HBox(10);
         customTitleBar.getStyleClass().add("custom-titlebar");
@@ -1648,7 +1657,7 @@ public class Controller {
         Button closeBtn = new Button("✕");
         closeBtn.getStyleClass().addAll("titlebar-btn", "titlebar-close");
         closeBtn.setOnAction(e -> {
-            childStages.remove(customStage); // NOVA LINHA
+            childStages.remove(customStage);
             customStage.close();
         });
 
@@ -1690,8 +1699,8 @@ public class Controller {
 
         customStage.setScene(scene);
 
-        childStages.add(customStage); // NOVA LINHA
-        customStage.setOnHidden(e -> childStages.remove(customStage)); // NOVA LINHA
+        childStages.add(customStage);
+        customStage.setOnHidden(e -> childStages.remove(customStage));
 
         setupChildWindowResize(customStage, scene);
         return customStage;

@@ -337,7 +337,7 @@
 }
 
 .alert-container {
-    -fx-background-color: #FFFFFF;
+    -fx-background-color: #EEEEEE   ;
     -fx-border-color: #CCCCCC;
     -fx-border-width: 1;
     -fx-border-radius: 5;
