@@ -5,8 +5,19 @@ import javafx.scene.image.ImageView;
 import javafx.scene.layout.TilePane;
 import javafx.scene.layout.VBox;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.StackPane;
+import javafx.scene.layout.Region;
+import javafx.scene.layout.Priority;
 import javafx.geometry.Pos;
 import javafx.stage.Stage;
+import javafx.stage.StageStyle;
+import javafx.scene.Scene;
+import javafx.geometry.Insets;
+import javafx.application.Platform;
+import javafx.stage.FileChooser;
+import javafx.scene.shape.Rectangle;
+import javafx.scene.text.TextAlignment;
 import model.FornecedorDAO;
 import model.LoteDAO;
 import model.LogDAO;
@@ -14,10 +25,7 @@ import model.LoteEstoque;
 import model.Fornecedor;
 import model.Produto;
 import model.LogEntry;
-import javafx.scene.Scene;
-import javafx.geometry.Insets;
-import javafx.application.Platform;
-import javafx.stage.FileChooser;
+import model.ImageService;
 import java.io.File;
 import java.io.IOException;
 import java.sql.SQLException;
@@ -28,13 +36,13 @@ import java.time.format.DateTimeParseException;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
-import model.ImageService;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 
 public class Controller {
 
+    // Componentes FXML
     @FXML private TilePane gridPane;
     @FXML private TextField nomeProdutoField;
     @FXML private ComboBox<Fornecedor> fornecedorCombo;
@@ -51,22 +59,23 @@ public class Controller {
     @FXML private TextField thresholdField;
     @FXML private Button novoFornecedorBtn;
     @FXML private Button adicionarFornecedorBtn;
-
     @FXML private VBox painelLote;
     @FXML private VBox painelFornecedor;
     @FXML private ToggleButton gerenciarLotesBtn;
     @FXML private ToggleButton gerenciarFornecedoresBtn;
-
     @FXML private TextField nomeFornecedorField;
     @FXML private TextField cnpjField;
     @FXML private TextField telefoneField;
     @FXML private TextField emailField;
     @FXML private ListView<Fornecedor> fornecedoresListView;
-
     @FXML private Button selecionarImagemBtn;
     @FXML private ImageView previewImageView;
     @FXML private Label imagemSelecionadaLabel;
+    @FXML private Button themeToggleBtn;
+    @FXML private HBox titleBar;
+    @FXML private BorderPane mainPane;
 
+    // Formatadores e variáveis de estado
     private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
     private final DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss");
     private LoteEstoque editingLote = null;
@@ -74,16 +83,34 @@ public class Controller {
     private Fornecedor editingFornecedor = null;
     private String imagemSelecionada = null;
 
-    // DAOs
+    // DAOs para acesso ao banco
     private FornecedorDAO fornecedorDAO = new FornecedorDAO();
     private LoteDAO loteDAO = new LoteDAO();
     private LogDAO logDAO = new LogDAO();
 
-    // IN-MEMORY CACHE - Single source of truth
+    // Cache em memória - fonte única de verdade para performance
     private List<Fornecedor> fornecedoresCache = new ArrayList<>();
     private List<LoteEstoque> lotesCache = new ArrayList<>();
     private Map<Integer, String> imageUrlsCache = new HashMap<>();
     private boolean cacheLoaded = false;
+
+    private boolean isDarkTheme = true;
+    private Stage stage;
+    private boolean isMaximized = false;
+    private boolean isResizing = false;
+    private double resizeStartX = 0;
+    private double resizeStartY = 0;
+    private double resizeStartWidth = 0;
+    private double resizeStartHeight = 0;
+    private String resizeDirection = "";
+    private static final int RESIZE_MARGIN = 10;
+    private boolean isDraggingWindow = false;
+    private javafx.scene.layout.Pane resizeOverlay;
+    private List<Stage> childStages = new ArrayList<>();
+    private double beforeMaxX;
+    private double beforeMaxY;
+    private double beforeMaxWidth;
+    private double beforeMaxHeight;
 
     @FXML
     public void initialize() {
@@ -91,7 +118,7 @@ public class Controller {
         gridPane.setVgap(10);
         gridPane.setAlignment(Pos.TOP_LEFT);
 
-        // Load all data once at startup
+        // Carrega todos os dados do banco apenas uma vez na inicialização
         loadAllDataFromDatabase();
 
         setupUIComponents();
@@ -102,17 +129,469 @@ public class Controller {
         Platform.runLater(() -> verificarEGerarAlertas());
     }
 
-    // ==================== DATABASE LOADING (ONLY ONCE AT STARTUP) ====================
+    public void setStage(Stage stage) {
+        this.stage = stage;
+
+        Platform.runLater(() -> {
+            setupRoundedCorners();
+            setupWindowDragging();
+            setupWindowResize();
+
+            if (isMaximized) {
+                updateRoundedCorners();
+            }
+        });
+    }
+
+    private void setupWindowResize() {
+        Scene scene = stage.getScene();
+        if (scene == null) return;
+
+        final double[] startX = {0};
+        final double[] startY = {0};
+        final double[] startStageX = {0};
+        final double[] startStageY = {0};
+        final double[] startWidth = {0};
+        final double[] startHeight = {0};
+
+        // Usa addEventFilter apenas quando está nas bordas
+        scene.addEventFilter(javafx.scene.input.MouseEvent.MOUSE_MOVED, event -> {
+            if (isMaximized || isResizing || isDraggingWindow) return;
+
+            double mouseX = event.getSceneX();
+            double mouseY = event.getSceneY();
+            double width = scene.getWidth();
+            double height = scene.getHeight();
+
+            boolean onLeft = mouseX < RESIZE_MARGIN;
+            boolean onRight = mouseX > width - RESIZE_MARGIN;
+            boolean onTop = mouseY < RESIZE_MARGIN;
+            boolean onBottom = mouseY > height - RESIZE_MARGIN;
+
+            // Só define cursor de resize se estiver nas bordas
+            if ((onLeft || onRight) || (onTop || onBottom)) {
+                if ((onLeft || onRight) && (onTop || onBottom)) {
+                    if (onLeft && onTop) {
+                        scene.setCursor(javafx.scene.Cursor.NW_RESIZE);
+                        resizeDirection = "NW";
+                    } else if (onRight && onTop) {
+                        scene.setCursor(javafx.scene.Cursor.NE_RESIZE);
+                        resizeDirection = "NE";
+                    } else if (onLeft && onBottom) {
+                        scene.setCursor(javafx.scene.Cursor.SW_RESIZE);
+                        resizeDirection = "SW";
+                    } else if (onRight && onBottom) {
+                        scene.setCursor(javafx.scene.Cursor.SE_RESIZE);
+                        resizeDirection = "SE";
+                    }
+                } else if (onLeft) {
+                    scene.setCursor(javafx.scene.Cursor.W_RESIZE);
+                    resizeDirection = "W";
+                } else if (onRight) {
+                    scene.setCursor(javafx.scene.Cursor.E_RESIZE);
+                    resizeDirection = "E";
+                } else if (onTop) {
+                    scene.setCursor(javafx.scene.Cursor.N_RESIZE);
+                    resizeDirection = "N";
+                } else if (onBottom) {
+                    scene.setCursor(javafx.scene.Cursor.S_RESIZE);
+                    resizeDirection = "S";
+                }
+            } else {
+                // Fora das bordas - limpa direção e deixa cursor padrão
+                if (!resizeDirection.isEmpty() && !isResizing) {
+                    scene.setCursor(javafx.scene.Cursor.DEFAULT);
+                    resizeDirection = "";
+                }
+            }
+        });
+
+        scene.addEventFilter(javafx.scene.input.MouseEvent.MOUSE_PRESSED, event -> {
+            // Só inicia resize se tiver uma direção definida (está na borda)
+            if (!resizeDirection.isEmpty() && !isMaximized && !isDraggingWindow) {
+                isResizing = true;
+                startX[0] = event.getScreenX();
+                startY[0] = event.getScreenY();
+                startStageX[0] = stage.getX();
+                startStageY[0] = stage.getY();
+                startWidth[0] = stage.getWidth();
+                startHeight[0] = stage.getHeight();
+                event.consume(); // Consome o evento para não passar para outros elementos
+            }
+        });
+
+        scene.addEventFilter(javafx.scene.input.MouseEvent.MOUSE_DRAGGED, event -> {
+            // Só faz resize se isResizing estiver true
+            if (!isResizing || isMaximized) return;
+
+            double deltaX = event.getScreenX() - startX[0];
+            double deltaY = event.getScreenY() - startY[0];
+
+            double minWidth = 800;
+            double minHeight = 600;
+
+            switch (resizeDirection) {
+                case "E":
+                    stage.setWidth(Math.max(minWidth, startWidth[0] + deltaX));
+                    break;
+
+                case "W":
+                    double newWidthW = startWidth[0] - deltaX;
+                    if (newWidthW >= minWidth) {
+                        stage.setX(startStageX[0] + deltaX);
+                        stage.setWidth(newWidthW);
+                    }
+                    break;
+
+                case "S":
+                    stage.setHeight(Math.max(minHeight, startHeight[0] + deltaY));
+                    break;
+
+                case "N":
+                    double newHeightN = startHeight[0] - deltaY;
+                    if (newHeightN >= minHeight) {
+                        stage.setY(startStageY[0] + deltaY);
+                        stage.setHeight(newHeightN);
+                    }
+                    break;
+
+                case "SE":
+                    stage.setWidth(Math.max(minWidth, startWidth[0] + deltaX));
+                    stage.setHeight(Math.max(minHeight, startHeight[0] + deltaY));
+                    break;
+
+                case "SW":
+                    double newWidthSW = startWidth[0] - deltaX;
+                    if (newWidthSW >= minWidth) {
+                        stage.setX(startStageX[0] + deltaX);
+                        stage.setWidth(newWidthSW);
+                    }
+                    stage.setHeight(Math.max(minHeight, startHeight[0] + deltaY));
+                    break;
+
+                case "NE":
+                    stage.setWidth(Math.max(minWidth, startWidth[0] + deltaX));
+                    double newHeightNE = startHeight[0] - deltaY;
+                    if (newHeightNE >= minHeight) {
+                        stage.setY(startStageY[0] + deltaY);
+                        stage.setHeight(newHeightNE);
+                    }
+                    break;
+
+                case "NW":
+                    double newWidthNW = startWidth[0] - deltaX;
+                    double newHeightNW = startHeight[0] - deltaY;
+                    if (newWidthNW >= minWidth) {
+                        stage.setX(startStageX[0] + deltaX);
+                        stage.setWidth(newWidthNW);
+                    }
+                    if (newHeightNW >= minHeight) {
+                        stage.setY(startStageY[0] + deltaY);
+                        stage.setHeight(newHeightNW);
+                    }
+                    break;
+            }
+
+            event.consume(); // Consome o evento durante o resize
+        });
+
+        scene.addEventFilter(javafx.scene.input.MouseEvent.MOUSE_RELEASED, event -> {
+            if (isResizing) {
+                isResizing = false;
+                resizeDirection = "";
+                scene.setCursor(javafx.scene.Cursor.DEFAULT);
+                event.consume();
+            }
+        });
+    }
+
+    private void createResizeBorders() {
+        Scene scene = stage.getScene();
+        if (scene == null) return;
+
+        final double[] startX = {0};
+        final double[] startY = {0};
+        final double[] startStageX = {0};
+        final double[] startStageY = {0};
+        final double[] startWidth = {0};
+        final double[] startHeight = {0};
+
+        // Listener global na Scene para detectar quando está nas bordas
+        scene.addEventFilter(javafx.scene.input.MouseEvent.MOUSE_MOVED, event -> {
+            if (isMaximized || isResizing) return;
+
+            double mouseX = event.getSceneX();
+            double mouseY = event.getSceneY();
+            double width = scene.getWidth();
+            double height = scene.getHeight();
+
+            boolean onLeft = mouseX < RESIZE_MARGIN;
+            boolean onRight = mouseX > width - RESIZE_MARGIN;
+            boolean onTop = mouseY < RESIZE_MARGIN;
+            boolean onBottom = mouseY > height - RESIZE_MARGIN;
+
+            if ((onLeft || onRight) || (onTop || onBottom)) {
+                // Está na borda - define cursor e direção
+                if ((onLeft || onRight) && (onTop || onBottom)) {
+                    if (onLeft && onTop) {
+                        scene.setCursor(javafx.scene.Cursor.NW_RESIZE);
+                        resizeDirection = "NW";
+                    } else if (onRight && onTop) {
+                        scene.setCursor(javafx.scene.Cursor.NE_RESIZE);
+                        resizeDirection = "NE";
+                    } else if (onLeft && onBottom) {
+                        scene.setCursor(javafx.scene.Cursor.SW_RESIZE);
+                        resizeDirection = "SW";
+                    } else if (onRight && onBottom) {
+                        scene.setCursor(javafx.scene.Cursor.SE_RESIZE);
+                        resizeDirection = "SE";
+                    }
+                } else if (onLeft) {
+                    scene.setCursor(javafx.scene.Cursor.W_RESIZE);
+                    resizeDirection = "W";
+                } else if (onRight) {
+                    scene.setCursor(javafx.scene.Cursor.E_RESIZE);
+                    resizeDirection = "E";
+                } else if (onTop) {
+                    scene.setCursor(javafx.scene.Cursor.N_RESIZE);
+                    resizeDirection = "N";
+                } else if (onBottom) {
+                    scene.setCursor(javafx.scene.Cursor.S_RESIZE);
+                    resizeDirection = "S";
+                }
+            } else {
+                scene.setCursor(javafx.scene.Cursor.DEFAULT);
+                resizeDirection = "";
+            }
+        });
+
+        scene.addEventFilter(javafx.scene.input.MouseEvent.MOUSE_PRESSED, event -> {
+            if (!resizeDirection.isEmpty() && !isMaximized) {
+                isResizing = true;
+                isDraggingWindow = false;
+                startX[0] = event.getScreenX();
+                startY[0] = event.getScreenY();
+                startStageX[0] = stage.getX();
+                startStageY[0] = stage.getY();
+                startWidth[0] = stage.getWidth();
+                startHeight[0] = stage.getHeight();
+                event.consume();
+            }
+        });
+
+        scene.addEventFilter(javafx.scene.input.MouseEvent.MOUSE_DRAGGED, event -> {
+            if (!isResizing || isMaximized) return;
+
+            double deltaX = event.getScreenX() - startX[0];
+            double deltaY = event.getScreenY() - startY[0];
+
+            double minWidth = 800;
+            double minHeight = 600;
+
+            switch (resizeDirection) {
+                case "E":
+                    stage.setWidth(Math.max(minWidth, startWidth[0] + deltaX));
+                    break;
+
+                case "W":
+                    double newWidthW = startWidth[0] - deltaX;
+                    if (newWidthW >= minWidth) {
+                        stage.setX(startStageX[0] + deltaX);
+                        stage.setWidth(newWidthW);
+                    }
+                    break;
+
+                case "S":
+                    stage.setHeight(Math.max(minHeight, startHeight[0] + deltaY));
+                    break;
+
+                case "N":
+                    double newHeightN = startHeight[0] - deltaY;
+                    if (newHeightN >= minHeight) {
+                        stage.setY(startStageY[0] + deltaY);
+                        stage.setHeight(newHeightN);
+                    }
+                    break;
+
+                case "SE":
+                    stage.setWidth(Math.max(minWidth, startWidth[0] + deltaX));
+                    stage.setHeight(Math.max(minHeight, startHeight[0] + deltaY));
+                    break;
+
+                case "SW":
+                    double newWidthSW = startWidth[0] - deltaX;
+                    if (newWidthSW >= minWidth) {
+                        stage.setX(startStageX[0] + deltaX);
+                        stage.setWidth(newWidthSW);
+                    }
+                    stage.setHeight(Math.max(minHeight, startHeight[0] + deltaY));
+                    break;
+
+                case "NE":
+                    stage.setWidth(Math.max(minWidth, startWidth[0] + deltaX));
+                    double newHeightNE = startHeight[0] - deltaY;
+                    if (newHeightNE >= minHeight) {
+                        stage.setY(startStageY[0] + deltaY);
+                        stage.setHeight(newHeightNE);
+                    }
+                    break;
+
+                case "NW":
+                    double newWidthNW = startWidth[0] - deltaX;
+                    double newHeightNW = startHeight[0] - deltaY;
+                    if (newWidthNW >= minWidth) {
+                        stage.setX(startStageX[0] + deltaX);
+                        stage.setWidth(newWidthNW);
+                    }
+                    if (newHeightNW >= minHeight) {
+                        stage.setY(startStageY[0] + deltaY);
+                        stage.setHeight(newHeightNW);
+                    }
+                    break;
+            }
+
+            event.consume();
+        });
+
+        scene.addEventFilter(javafx.scene.input.MouseEvent.MOUSE_RELEASED, event -> {
+            if (isResizing) {
+                isResizing = false;
+                resizeDirection = "";
+                event.consume();
+            }
+        });
+    }
+
+    private void setupWindowDragging() {
+        final double[] xOffset = {0};
+        final double[] yOffset = {0};
+
+        titleBar.setOnMousePressed(event -> {
+            if (!isResizing) { // Só permite drag se não estiver resizing
+                isDraggingWindow = true;
+                xOffset[0] = event.getSceneX();
+                yOffset[0] = event.getSceneY();
+            }
+        });
+
+        titleBar.setOnMouseDragged(event -> {
+            if (!isMaximized && isDraggingWindow && !isResizing) {
+                stage.setX(event.getScreenX() - xOffset[0]);
+                stage.setY(event.getScreenY() - yOffset[0]);
+            }
+        });
+
+        titleBar.setOnMouseReleased(event -> {
+            isDraggingWindow = false;
+        });
+
+        // Duplo clique para maximizar/restaurar
+        titleBar.setOnMouseClicked(event -> {
+            if (event.getClickCount() == 2 && !isResizing) {
+                maximizeWindow();
+            }
+        });
+    }
+
+    @FXML
+    private void minimizeWindow() {
+        if (stage != null) {
+            stage.setIconified(true);
+        }
+    }
+
+    @FXML
+    public void maximizeWindow() {
+        if (stage != null) {
+            if (isMaximized) {
+                // RESTAURAR TAMANHO E POSIÇÃO ANTERIORES
+                stage.setX(beforeMaxX);
+                stage.setY(beforeMaxY);
+                stage.setWidth(beforeMaxWidth);
+                stage.setHeight(beforeMaxHeight);
+                isMaximized = false;
+                updateRoundedCorners(); // ATUALIZA BORDAS
+            } else {
+                // GUARDAR TAMANHO E POSIÇÃO ATUAIS
+                beforeMaxX = stage.getX();
+                beforeMaxY = stage.getY();
+                beforeMaxWidth = stage.getWidth();
+                beforeMaxHeight = stage.getHeight();
+
+                // MAXIMIZAR RESPEITANDO A BARRA DE TAREFAS
+                javafx.stage.Screen screen = javafx.stage.Screen.getPrimary();
+                javafx.geometry.Rectangle2D visualBounds = screen.getVisualBounds();
+
+                stage.setX(visualBounds.getMinX());
+                stage.setY(visualBounds.getMinY());
+                stage.setWidth(visualBounds.getWidth());
+                stage.setHeight(visualBounds.getHeight());
+
+                isMaximized = true;
+                updateRoundedCorners(); // ATUALIZA BORDAS
+            }
+        }
+    }
+
+    private void updateRoundedCorners() {
+        Scene scene = stage.getScene();
+        if (scene == null || scene.getRoot() == null) return;
+
+        StackPane root = (StackPane) scene.getRoot();
+
+        if (isMaximized) {
+            root.setClip(null);
+            if (mainPane != null) {
+                mainPane.setStyle("-fx-background-radius: 0; -fx-border-radius: 0;");
+            }
+        } else {
+            javafx.scene.shape.Rectangle clip = new javafx.scene.shape.Rectangle();
+            clip.setArcWidth(24);
+            clip.setArcHeight(24);
+            clip.widthProperty().bind(root.widthProperty());
+            clip.heightProperty().bind(root.heightProperty());
+            root.setClip(clip);
+            // Restaura border-radius do CSS
+            if (mainPane != null) {
+                mainPane.setStyle("-fx-background-radius: 12; -fx-border-radius: 12;");
+            }
+        }
+    }
+
+    @FXML
+    private void closeWindow() {
+        if (stage != null) {
+            stage.close();
+        }
+    }
+
+    private void setupRoundedCorners() {
+        Scene scene = stage.getScene();
+        if (scene == null || scene.getRoot() == null) return;
+
+        StackPane root = (StackPane) scene.getRoot();
+
+        javafx.scene.shape.Rectangle clip = new javafx.scene.shape.Rectangle();
+        clip.setArcWidth(24);
+        clip.setArcHeight(24);
+
+        clip.widthProperty().bind(root.widthProperty());
+        clip.heightProperty().bind(root.heightProperty());
+
+        root.setClip(clip);
+    }
+
+    // ==================== CARREGAMENTO DO BANCO (APENAS UMA VEZ NA INICIALIZAÇÃO) ====================
 
     private void loadAllDataFromDatabase() {
         try {
             System.out.println("[CACHE] Carregando dados do banco de dados...");
 
-            // Load fornecedores
+            // Carrega fornecedores
             fornecedoresCache = fornecedorDAO.listarTodos();
             System.out.println("[CACHE] Fornecedores carregados: " + fornecedoresCache.size());
 
-            // Load lotes with product names and images
+            // Carrega lotes com nomes de produtos e imagens
             List<Object[]> lotesComNome = loteDAO.listarTodosComNome();
             lotesCache.clear();
             imageUrlsCache.clear();
@@ -126,7 +605,7 @@ public class Controller {
                 produto.setUrlImagem(urlImagem != null ? urlImagem : "med.png");
                 lote.setProduto(produto);
 
-                // Link fornecedor from cache
+                // Vincula fornecedor do cache
                 Fornecedor f = fornecedoresCache.stream()
                         .filter(forn -> forn.getIdFornecedor() == lote.getIdFornecedor())
                         .findFirst()
@@ -147,12 +626,13 @@ public class Controller {
         }
     }
 
+    // Recarrega dados após operações de alteração no banco
     private void reloadFromDatabase() {
         System.out.println("[CACHE] Recarregando dados do banco após alteração...");
         loadAllDataFromDatabase();
     }
 
-    // ==================== UI SETUP ====================
+    // ==================== CONFIGURAÇÃO DA UI ====================
 
     private void setupUIComponents() {
         setSupplierFieldsEditable(false);
@@ -171,10 +651,55 @@ public class Controller {
 
         configurarFormatacaoData(validadeField);
         configurarFormatacaoData(dataEntradaField);
+        configurarFormatacaoTelefone(telefoneField);
+    }
+
+    @FXML
+    private void toggleTheme() {
+        Scene scene = gridPane.getScene();
+
+        if (scene != null) {
+            scene.getStylesheets().clear();
+
+            if (isDarkTheme) {
+                scene.getStylesheets().add(getClass().getResource("styles-light.css").toExternalForm());
+                isDarkTheme = false;
+                if (themeToggleBtn != null) {
+                    themeToggleBtn.setText("☀");
+                }
+                System.out.println("[TEMA] Alterado para tema claro");
+            } else {
+                scene.getStylesheets().add(getClass().getResource("styles.css").toExternalForm());
+                isDarkTheme = true;
+                if (themeToggleBtn != null) {
+                    themeToggleBtn.setText("🌙");
+                }
+                System.out.println("[TEMA] Alterado para tema escuro");
+            }
+
+            updateGridDisplay();
+            updateChildStagesTheme(); // NOVA LINHA - ATUALIZA JANELAS FILHAS
+        }
+    }
+
+    private void updateChildStagesTheme() {
+        childStages.removeIf(stage -> !stage.isShowing());
+
+        String stylesheet = isDarkTheme ?
+                getClass().getResource("styles.css").toExternalForm() :
+                getClass().getResource("styles-light.css").toExternalForm();
+
+        for (Stage childStage : childStages) {
+            Scene childScene = childStage.getScene();
+            if (childScene != null) {
+                childScene.getStylesheets().clear();
+                childScene.getStylesheets().add(stylesheet);
+            }
+        }
     }
 
     private void setupEventListeners() {
-        // Fornecedor selection
+        // Listener de seleção de fornecedor
         fornecedoresListView.getSelectionModel().selectedItemProperty().addListener((obs, oldSelection, newSelection) -> {
             if (newSelection != null) {
                 nomeFornecedorField.setText(newSelection.getNome());
@@ -194,12 +719,12 @@ public class Controller {
             }
         });
 
-        // Search and filter listeners - only update display, no DB access
+        // Listeners de busca e filtros - apenas atualizam display, sem acesso ao BD
         searchField.textProperty().addListener((obs, oldV, newV) -> updateGridDisplay());
         sortCombo.valueProperty().addListener((obs, oldV, newV) -> updateGridDisplay());
         filterCombo.valueProperty().addListener((obs, oldV, newV) -> updateGridDisplay());
 
-        // Button actions
+        // Ações dos botões de lote
         editarSelecionadoBtn.setOnAction(e -> {
             if (selectedLote != null) editarLote(selectedLote);
         });
@@ -212,6 +737,7 @@ public class Controller {
         });
     }
 
+    // Formata campos de data para dd/MM/yyyy automaticamente
     private void configurarFormatacaoData(TextField field) {
         field.setTextFormatter(new TextFormatter<>(change -> {
             if (change.isAdded() || change.isReplaced()) {
@@ -240,15 +766,9 @@ public class Controller {
 
     // ==================== SISTEMA DE LOG ====================
 
+    // Registra operação no log com limite de 50 entradas
     private void registrarLog(String tipoOperacao, String entidade, String descricao) {
-        LogEntry log = new LogEntry(
-                0,
-                LocalDateTime.now(),
-                tipoOperacao,
-                entidade,
-                descricao,
-                "Sistema"
-        );
+        LogEntry log = new LogEntry(0, LocalDateTime.now(), tipoOperacao, entidade, descricao, "Sistema");
 
         try {
             logDAO.inserir(log);
@@ -260,6 +780,7 @@ public class Controller {
         }
     }
 
+    // Mantém apenas os 50 logs mais recentes
     private void limparLogsAntigos() {
         try {
             int totalLogs = logDAO.contarTotal();
@@ -277,8 +798,7 @@ public class Controller {
                     stmt.setInt(1, quantidadeParaRemover);
                     int removidos = stmt.executeUpdate();
 
-                    System.out.println("[LOG] " + removidos + " logs antigos removidos. Total agora: " +
-                            (totalLogs - removidos));
+                    System.out.println("[LOG] " + removidos + " logs antigos removidos. Total agora: " + (totalLogs - removidos));
                 }
             }
         } catch (SQLException e) {
@@ -287,6 +807,7 @@ public class Controller {
         }
     }
 
+    // Exibe janela com histórico de alterações filtráveis
     @FXML
     public void mostrarHistorico() {
         VBox content = new VBox(10);
@@ -338,10 +859,8 @@ public class Controller {
 
                 List<LogEntry> logsFiltrados = logs.stream()
                         .filter(log -> {
-                            boolean tipoMatch = tipoFiltro.getValue().equals("Todas") ||
-                                    log.getTipoOperacao().equals(tipoFiltro.getValue());
-                            boolean entidadeMatch = entidadeFiltro.getValue().equals("Todas") ||
-                                    log.getEntidade().equals(entidadeFiltro.getValue());
+                            boolean tipoMatch = tipoFiltro.getValue().equals("Todas") || log.getTipoOperacao().equals(tipoFiltro.getValue());
+                            boolean entidadeMatch = entidadeFiltro.getValue().equals("Todas") || log.getEntidade().equals(entidadeFiltro.getValue());
                             return tipoMatch && entidadeMatch;
                         })
                         .sorted((l1, l2) -> l2.getDataHora().compareTo(l1.getDataHora()))
@@ -398,12 +917,8 @@ public class Controller {
         scrollPane.getStyleClass().add("notification-scroll");
         scrollPane.setFocusTraversable(false);
 
-        Stage stage = new Stage();
-        stage.setTitle("Historico de Alteracoes");
-
-        Scene scene = new Scene(scrollPane, 800, 600);
-        scene.getStylesheets().add(getClass().getResource("styles.css").toExternalForm());
-        stage.setScene(scene);
+        // USA O NOVO MÉTODO PARA CRIAR JANELA CUSTOMIZADA
+        Stage stage = createCustomStage("Historico de Alteracoes", scrollPane, 800, 600);
         stage.show();
     }
 
@@ -422,6 +937,7 @@ public class Controller {
     private void alternarPainel(javafx.event.ActionEvent event) {
         ToggleButton source = (ToggleButton) event.getSource();
 
+        // Evita alternar se já está no painel ativo
         if (source == gerenciarLotesBtn && painelLote.isVisible()) {
             gerenciarLotesBtn.setSelected(true);
             return;
@@ -466,9 +982,7 @@ public class Controller {
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle("Selecionar Imagem do Produto");
 
-        FileChooser.ExtensionFilter imageFilter = new FileChooser.ExtensionFilter(
-                "Arquivos de Imagem", "*.png", "*.jpg", "*.jpeg", "*.gif", "*.bmp"
-        );
+        FileChooser.ExtensionFilter imageFilter = new FileChooser.ExtensionFilter("Arquivos de Imagem", "*.png", "*.jpg", "*.jpeg", "*.gif", "*.bmp");
         fileChooser.getExtensionFilters().add(imageFilter);
 
         File selectedFile = fileChooser.showOpenDialog(nomeProdutoField.getScene().getWindow());
@@ -501,6 +1015,12 @@ public class Controller {
         }
     }
 
+    // Verifica se o lote está vencido
+    private boolean loteEstaVencido(LoteEstoque lote) {
+        return lote.getDataValidade().isBefore(LocalDate.now());
+    }
+
+    // Adiciona ou edita lote no banco e atualiza cache
     @FXML
     private void adicionarLote() {
         String nomeProduto = nomeProdutoField.getText().trim();
@@ -534,9 +1054,16 @@ public class Controller {
         LocalDate entrada = parseDate(entradaStr);
 
         if (validade != null && entrada != null) {
+            // Impede edição de lotes vencidos
+            if (editingLote != null && loteEstaVencido(editingLote)) {
+                mostrarAlerta("Erro", "Não é possível editar lotes vencidos!");
+                limparCamposLote();
+                return;
+            }
+
             try {
                 if (editingLote != null) {
-                    // EDITING EXISTING LOTE
+                    // Editando lote existente
                     int qtdAnterior = editingLote.getQuantidadeAtual();
                     String imagemAnterior = editingLote.getProduto().getUrlImagem();
                     String imagemNova = imagemSelecionada != null ? imagemSelecionada : imagemAnterior;
@@ -568,7 +1095,7 @@ public class Controller {
                         descricaoLog.append(" Alteracoes: ").append(String.join(", ", mudancas));
                     }
 
-                    // Update in database
+                    // Atualiza no banco
                     editingLote.setNumeroLote(numeroLote);
                     editingLote.setQuantidadeAtual(qtd);
                     editingLote.setDataEntrada(entrada);
@@ -586,7 +1113,7 @@ public class Controller {
                     loteDAO.atualizar(editingLote, nomeProduto, imagemNova);
                     registrarLog("EDITAR", "LOTE", descricaoLog.toString());
 
-                    // Update in-memory cache
+                    // Atualiza cache em memória
                     editingLote.getProduto().setNome(nomeProduto);
                     editingLote.setFornecedor(fornecedorSelecionado);
                     imageUrlsCache.put(editingLote.getIdLote(), imagemNova);
@@ -594,27 +1121,19 @@ public class Controller {
                     editingLote = null;
 
                 } else {
-                    // CREATING NEW LOTE
+                    // Criando novo lote
                     String urlImagem = imagemSelecionada != null ? imagemSelecionada : "med.png";
 
-                    LoteEstoque novoLote = new LoteEstoque(
-                            0, numeroLote, qtd, entrada, validade,
-                            0,
-                            fornecedorSelecionado.getIdFornecedor(),
-                            threshold
-                    );
+                    LoteEstoque novoLote = new LoteEstoque(0, numeroLote, qtd, entrada, validade, 0, fornecedorSelecionado.getIdFornecedor(), threshold);
 
                     loteDAO.inserir(novoLote, nomeProduto, urlImagem);
 
-                    String descricaoLog = String.format(
-                            "Lote '%s' do produto '%s' criado. Quantidade: %d, Fornecedor: %s, Validade: %s%s",
-                            numeroLote, nomeProduto, qtd, fornecedorSelecionado.getNome(),
-                            validade.format(formatter),
-                            imagemSelecionada != null ? ", com imagem personalizada" : ""
-                    );
+                    String descricaoLog = String.format("Lote '%s' do produto '%s' criado. Quantidade: %d, Fornecedor: %s, Validade: %s%s",
+                            numeroLote, nomeProduto, qtd, fornecedorSelecionado.getNome(), validade.format(formatter),
+                            imagemSelecionada != null ? ", com imagem personalizada" : "");
                     registrarLog("CRIAR", "LOTE", descricaoLog);
 
-                    // Reload from database to get the new ID and add to cache
+                    // Recarrega do banco para obter o ID e adicionar ao cache
                     reloadFromDatabase();
                 }
 
@@ -628,32 +1147,24 @@ public class Controller {
         }
     }
 
+    // Exclui lote do banco e remove do cache
     private void excluirLote(LoteEstoque lote) {
         try {
-            String descricaoLog = String.format(
-                    "Lote '%s' do produto '%s' excluido. Quantidade: %d",
-                    lote.getNumeroLote(), lote.getProduto().getNome(),
-                    lote.getQuantidadeAtual()
-            );
-
+            String descricaoLog = String.format("Lote '%s' do produto '%s' excluido. Quantidade: %d",
+                    lote.getNumeroLote(), lote.getProduto().getNome(), lote.getQuantidadeAtual());
             if (lote.getProduto() != null) {
                 String urlImagem = lote.getProduto().getUrlImagem();
                 if (urlImagem != null && !urlImagem.equals("file:med.png") && !urlImagem.equals("med.png")) {
                     ImageService.excluirImagem(urlImagem);
                 }
             }
-
-            // Delete from database
             loteDAO.excluir(lote.getIdLote());
             registrarLog("EXCLUIR", "LOTE", descricaoLog);
-
-            // Remove from in-memory cache
+            // Remove do cache em memória
             lotesCache.removeIf(l -> l.getIdLote() == lote.getIdLote());
             imageUrlsCache.remove(lote.getIdLote());
-
             limparCamposLote();
             updateGridDisplay();
-
         } catch (SQLException e) {
             mostrarAlerta("Erro", "Erro ao excluir lote: " + e.getMessage());
             e.printStackTrace();
@@ -678,8 +1189,15 @@ public class Controller {
         }
     }
 
+    // Carrega dados do lote nos campos para edição
     @FXML
     private void editarLote(LoteEstoque lote) {
+        // Impede edição de lotes vencidos
+        if (loteEstaVencido(lote)) {
+            mostrarAlerta("Erro", "Não é possível editar lotes vencidos!");
+            return;
+        }
+
         if (editingLote != null && editingLote != lote) {
             Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
             confirm.setTitle("Edicao em Andamento");
@@ -700,7 +1218,6 @@ public class Controller {
         thresholdField.setText(String.valueOf(lote.getAlertThreshold()));
         editingLote = lote;
         selectedLote = null;
-
         if (lote.getProduto() != null) {
             String urlImagem = lote.getProduto().getUrlImagem();
             if (imagemSelecionadaLabel != null) {
@@ -724,8 +1241,9 @@ public class Controller {
         updateCardStyling();
     }
 
-    // ==================== GERENCIAMENTO DE FORNECEDORES ====================
+// ==================== GERENCIAMENTO DE FORNECEDORES ====================
 
+    // Adiciona ou edita fornecedor no banco e atualiza cache
     @FXML
     private void adicionarFornecedor() {
         String nome = nomeFornecedorField.getText().trim();
@@ -743,11 +1261,8 @@ public class Controller {
 
         try {
             if (editingFornecedor != null) {
-                // EDITING EXISTING FORNECEDOR
-                String descricaoLog = String.format(
-                        "Fornecedor '%s' editado. CNPJ: %s, Telefone: %s, Email: %s",
-                        nome, cnpj, telefone, email
-                );
+                // Editando fornecedor existente
+                String descricaoLog = String.format("Fornecedor '%s' editado. CNPJ: %s, Telefone: %s, Email: %s", nome, cnpj, telefone, email);
 
                 editingFornecedor.setNome(nome);
                 editingFornecedor.setCnpj(cnpj);
@@ -757,12 +1272,10 @@ public class Controller {
                 fornecedorDAO.atualizar(editingFornecedor);
                 registrarLog("EDITAR", "FORNECEDOR", descricaoLog);
 
-                // Update in-memory cache - object is already updated by reference
-
                 editingFornecedor = null;
 
             } else {
-                // CREATING NEW FORNECEDOR
+                // Criando novo fornecedor
                 if (!cnpj.isEmpty() && fornecedorDAO.cnpjJaExiste(cnpj, 0)) {
                     mostrarAlerta("Erro", "CNPJ ja cadastrado!");
                     if (adicionarFornecedorBtn != null) {
@@ -774,13 +1287,10 @@ public class Controller {
                 Fornecedor novoFornecedor = new Fornecedor(0, nome, cnpj, telefone, email);
                 fornecedorDAO.inserir(novoFornecedor);
 
-                String descricaoLog = String.format(
-                        "Fornecedor '%s' criado. CNPJ: %s, Telefone: %s, Email: %s",
-                        nome, cnpj, telefone, email
-                );
+                String descricaoLog = String.format("Fornecedor '%s' criado. CNPJ: %s, Telefone: %s, Email: %s", nome, cnpj, telefone, email);
                 registrarLog("CRIAR", "FORNECEDOR", descricaoLog);
 
-                // Reload from database to get the new ID
+                // Recarrega para obter o ID
                 reloadFromDatabase();
             }
 
@@ -799,6 +1309,7 @@ public class Controller {
         }
     }
 
+    // Exclui fornecedor se não tiver lotes vinculados
     @FXML
     private void excluirFornecedor() {
         Fornecedor selecionado = fornecedoresListView.getSelectionModel().getSelectedItem();
@@ -808,25 +1319,20 @@ public class Controller {
         }
 
         try {
-            // Check in memory cache first
-            boolean temLotes = lotesCache.stream()
-                    .anyMatch(lote -> lote.getIdFornecedor() == selecionado.getIdFornecedor());
+            // Verifica no cache em memória primeiro
+            boolean temLotes = lotesCache.stream().anyMatch(lote -> lote.getIdFornecedor() == selecionado.getIdFornecedor());
 
             if (temLotes) {
                 mostrarAlerta("Erro", "Nao e possivel excluir este fornecedor pois existem lotes vinculados a ele!");
                 return;
             }
 
-            String descricaoLog = String.format(
-                    "Fornecedor '%s' excluido. CNPJ: %s",
-                    selecionado.getNome(), selecionado.getCnpj()
-            );
+            String descricaoLog = String.format("Fornecedor '%s' excluido. CNPJ: %s", selecionado.getNome(), selecionado.getCnpj());
 
-            // Delete from database
             fornecedorDAO.excluir(selecionado.getIdFornecedor());
             registrarLog("EXCLUIR", "FORNECEDOR", descricaoLog);
 
-            // Remove from in-memory cache
+            // Remove do cache em memória
             fornecedoresCache.removeIf(f -> f.getIdFornecedor() == selecionado.getIdFornecedor());
 
             limparCamposFornecedor();
@@ -890,28 +1396,32 @@ public class Controller {
         }
     }
 
-    // ==================== MOVIMENTAÇÕES ====================
+// ==================== MOVIMENTAÇÕES ====================
 
     @FXML
     public void mostrarAlertas() {
         verificarEGerarAlertas();
     }
 
+    // Incrementa quantidade do lote no banco e cache
     private void incrementarQuantidade(LoteEstoque lote, int quantidade) {
+        // Impede incrementar lotes vencidos
+        if (loteEstaVencido(lote)) {
+            mostrarAlerta("Erro", "Não é possível incrementar a quantidade de lotes vencidos!");
+            return;
+        }
+
         try {
             int qtdAnterior = lote.getQuantidadeAtual();
             int novaQuantidade = qtdAnterior + quantidade;
 
-            // Update in database
             loteDAO.atualizarQuantidade(lote.getIdLote(), novaQuantidade);
 
-            // Update in-memory cache
+            // Atualiza cache em memória
             lote.setQuantidadeAtual(novaQuantidade);
 
-            String descricaoLog = String.format(
-                    "Quantidade do lote '%s' (%s) incrementada: %d -> %d",
-                    lote.getNumeroLote(), lote.getProduto().getNome(), qtdAnterior, novaQuantidade
-            );
+            String descricaoLog = String.format("Quantidade do lote '%s' (%s) incrementada: %d -> %d",
+                    lote.getNumeroLote(), lote.getProduto().getNome(), qtdAnterior, novaQuantidade);
             registrarLog("EDITAR", "LOTE", descricaoLog);
 
             updateGridDisplay();
@@ -922,22 +1432,26 @@ public class Controller {
         }
     }
 
+    // Decrementa quantidade do lote no banco e cache
     private void decrementarQuantidade(LoteEstoque lote, int quantidade) {
+        // Impede decrementar lotes vencidos
+        if (loteEstaVencido(lote)) {
+            mostrarAlerta("Erro", "Não é possível decrementar a quantidade de lotes vencidos!");
+            return;
+        }
+
         if (lote.getQuantidadeAtual() >= quantidade) {
             try {
                 int qtdAnterior = lote.getQuantidadeAtual();
                 int novaQuantidade = qtdAnterior - quantidade;
 
-                // Update in database
                 loteDAO.atualizarQuantidade(lote.getIdLote(), novaQuantidade);
 
-                // Update in-memory cache
+                // Atualiza cache em memória
                 lote.setQuantidadeAtual(novaQuantidade);
 
-                String descricaoLog = String.format(
-                        "Quantidade do lote '%s' (%s) decrementada: %d -> %d",
-                        lote.getNumeroLote(), lote.getProduto().getNome(), qtdAnterior, novaQuantidade
-                );
+                String descricaoLog = String.format("Quantidade do lote '%s' (%s) decrementada: %d -> %d",
+                        lote.getNumeroLote(), lote.getProduto().getNome(), qtdAnterior, novaQuantidade);
                 registrarLog("EDITAR", "LOTE", descricaoLog);
 
                 updateGridDisplay();
@@ -949,6 +1463,7 @@ public class Controller {
         }
     }
 
+    // Verifica alertas de estoque baixo e validade próxima/vencida
     private void verificarEGerarAlertas() {
         List<String> alertas = new java.util.ArrayList<>();
         LocalDate hoje = LocalDate.now();
@@ -957,25 +1472,18 @@ public class Controller {
             String nomeProduto = lote.getProduto().getNome();
 
             if (lote.getQuantidadeAtual() < lote.getAlertThreshold()) {
-                alertas.add("[ALERTA] O insumo \"" + nomeProduto +
-                        "\" (Lote: " + lote.getNumeroLote() +
-                        ") esta com estoque baixo. Quantidade atual: " +
-                        lote.getQuantidadeAtual() + ".");
+                alertas.add("[ALERTA] O insumo \"" + nomeProduto + "\" (Lote: " + lote.getNumeroLote() +
+                        ") esta com estoque baixo. Quantidade atual: " + lote.getQuantidadeAtual() + ".");
             }
 
-            if (lote.getDataValidade().isAfter(hoje) &&
-                    lote.getDataValidade().isBefore(hoje.plusDays(7))) {
-                alertas.add("[ALERTA] O insumo \"" + nomeProduto +
-                        "\" (Lote: " + lote.getNumeroLote() +
-                        ") esta proximo de vencer. Vence em: " +
-                        lote.getDataValidade().format(formatter) + ".");
+            if (lote.getDataValidade().isAfter(hoje) && lote.getDataValidade().isBefore(hoje.plusDays(30))) {
+                alertas.add("[ALERTA] O insumo \"" + nomeProduto + "\" (Lote: " + lote.getNumeroLote() +
+                        ") esta proximo de vencer. Vence em: " + lote.getDataValidade().format(formatter) + ".");
             }
 
             if (lote.getDataValidade().isBefore(hoje)) {
-                alertas.add("[ALERTA] O insumo \"" + nomeProduto +
-                        "\" (Lote: " + lote.getNumeroLote() +
-                        ") está vencido. Venceu em: " +
-                        lote.getDataValidade().format(formatter) + ".");
+                alertas.add("[ALERTA] O insumo \"" + nomeProduto + "\" (Lote: " + lote.getNumeroLote() +
+                        ") está vencido. Venceu em: " + lote.getDataValidade().format(formatter) + ".");
             }
         }
 
@@ -984,7 +1492,7 @@ public class Controller {
         }
     }
 
-    // ==================== INTERFACE E UTILIDADES ====================
+// ==================== INTERFACE E UTILIDADES ====================
 
     private LocalDate parseDate(String str) {
         try {
@@ -1000,6 +1508,59 @@ public class Controller {
         cnpjField.setEditable(editable);
         telefoneField.setEditable(editable);
         emailField.setEditable(editable);
+
+        // Disable the fields completely when not editable
+        nomeFornecedorField.setDisable(!editable);
+        cnpjField.setDisable(!editable);
+        telefoneField.setDisable(!editable);
+        emailField.setDisable(!editable);
+
+        // Prevent focus on disabled fields
+        nomeFornecedorField.setFocusTraversable(editable);
+        cnpjField.setFocusTraversable(editable);
+        telefoneField.setFocusTraversable(editable);
+        emailField.setFocusTraversable(editable);
+    }
+
+    // FORMATAÇÃO DO CAMPO TELEFONE DO FORNECEDOR
+    private void configurarFormatacaoTelefone(TextField field) {
+        field.setTextFormatter(new TextFormatter<>(change -> {
+            if (change.isAdded() || change.isReplaced()) {
+                String digits = change.getControlNewText().replaceAll("[^\\d]", "");
+                if (digits.length() > 11) digits = digits.substring(0, 11);
+
+                StringBuilder formatted = new StringBuilder();
+                int caretPos = change.getCaretPosition();
+
+                for (int i = 0; i < digits.length(); i++) {
+                    // Adiciona '(' antes do DDD
+                    if (i == 0) {
+                        formatted.append("(");
+                        if (caretPos > i) caretPos++;
+                    }
+
+                    formatted.append(digits.charAt(i));
+
+                    // Adiciona ') ' após o DDD (2 dígitos)
+                    if (i == 1 && digits.length() > 2) {
+                        formatted.append(") ");
+                        if (caretPos > i + 1) caretPos += 2;
+                    }
+
+                    // Adiciona '-' após os primeiros 5 dígitos do número (posição 7 total)
+                    if (i == 6 && digits.length() > 7) {
+                        formatted.append("-");
+                        if (caretPos > i + 1) caretPos++;
+                    }
+                }
+
+                change.setText(formatted.toString());
+                change.setRange(0, change.getControlText().length());
+                caretPos = Math.min(caretPos, formatted.length());
+                change.selectRange(caretPos, caretPos);
+            }
+            return change;
+        }));
     }
 
     private void mostrarAlerta(String titulo, String mensagem) {
@@ -1008,12 +1569,7 @@ public class Controller {
         alert.showAndWait();
     }
 
-    // ==================== DISPLAY UPDATE (NO DATABASE ACCESS) ====================
-
-    /**
-     * Updates the grid display using only in-memory cache data.
-     * NO DATABASE ACCESS - pure memory operations for instant response.
-     */
+    // Atualiza grid com filtros e ordenação do cache em memória
     private void updateGridDisplay() {
         gridPane.getChildren().clear();
 
@@ -1021,7 +1577,7 @@ public class Controller {
         String filter = filterCombo.getValue();
         String sort = sortCombo.getValue();
 
-        // Filter and sort from memory cache
+        // Filtra e ordena do cache em memória
         List<LoteEstoque> list = lotesCache.stream()
                 .filter(l -> l.getProduto().getNome().toLowerCase().contains(search) ||
                         (l.getFornecedor() != null && l.getFornecedor().getNome().toLowerCase().contains(search)))
@@ -1048,10 +1604,7 @@ public class Controller {
         totalLabel.setText("Total: " + total);
     }
 
-    /**
-     * Updates only the visual styling of cards without rebuilding the entire grid.
-     * Used for selection changes - FASTEST possible update, no DOM manipulation.
-     */
+    // Atualiza apenas o estilo visual dos cards (mais rápido, sem reconstruir DOM)
     private void updateCardStyling() {
         for (javafx.scene.Node node : gridPane.getChildren()) {
             if (node instanceof VBox) {
@@ -1071,41 +1624,284 @@ public class Controller {
         }
     }
 
+    // Método auxiliar para criar janelas com barra de título customizada
+    private Stage createCustomStage(String title, javafx.scene.Node content, double width, double height) {
+        Stage customStage = new Stage();
+        customStage.initStyle(StageStyle.TRANSPARENT);
+
+        StackPane root = new StackPane();
+        root.setStyle("-fx-background-color: transparent;");
+
+        BorderPane mainPane = new BorderPane();
+        mainPane.getStyleClass().add("border-pane");
+
+        HBox customTitleBar = new HBox(10);
+        customTitleBar.getStyleClass().add("custom-titlebar");
+        customTitleBar.setAlignment(Pos.CENTER_LEFT);
+
+        Label titleLabel = new Label(title);
+        titleLabel.getStyleClass().add("titlebar-title");
+
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+
+        Button closeBtn = new Button("✕");
+        closeBtn.getStyleClass().addAll("titlebar-btn", "titlebar-close");
+        closeBtn.setOnAction(e -> {
+            childStages.remove(customStage); // NOVA LINHA
+            customStage.close();
+        });
+
+        customTitleBar.getChildren().addAll(titleLabel, spacer, closeBtn);
+
+        final double[] xOffset = {0};
+        final double[] yOffset = {0};
+
+        customTitleBar.setOnMousePressed(event -> {
+            xOffset[0] = event.getSceneX();
+            yOffset[0] = event.getSceneY();
+        });
+
+        customTitleBar.setOnMouseDragged(event -> {
+            customStage.setX(event.getScreenX() - xOffset[0]);
+            customStage.setY(event.getScreenY() - yOffset[0]);
+        });
+
+        mainPane.setTop(customTitleBar);
+        mainPane.setCenter(content);
+
+        root.getChildren().add(mainPane);
+
+        Rectangle clip = new Rectangle();
+        clip.setArcWidth(24);
+        clip.setArcHeight(24);
+        clip.widthProperty().bind(root.widthProperty());
+        clip.heightProperty().bind(root.heightProperty());
+        root.setClip(clip);
+
+        Scene scene = new Scene(root, width, height);
+        scene.setFill(javafx.scene.paint.Color.TRANSPARENT);
+
+        if (isDarkTheme) {
+            scene.getStylesheets().add(getClass().getResource("styles.css").toExternalForm());
+        } else {
+            scene.getStylesheets().add(getClass().getResource("styles-light.css").toExternalForm());
+        }
+
+        customStage.setScene(scene);
+
+        childStages.add(customStage); // NOVA LINHA
+        customStage.setOnHidden(e -> childStages.remove(customStage)); // NOVA LINHA
+
+        setupChildWindowResize(customStage, scene);
+        return customStage;
+    }
+
+    private void setupChildWindowResize(Stage childStage, Scene scene) {
+        final double[] startX = {0};
+        final double[] startY = {0};
+        final double[] startStageX = {0};
+        final double[] startStageY = {0};
+        final double[] startWidth = {0};
+        final double[] startHeight = {0};
+        final String[] childResizeDirection = {""};
+        final boolean[] isChildResizing = {false};
+
+        scene.addEventFilter(javafx.scene.input.MouseEvent.MOUSE_MOVED, event -> {
+            if (isChildResizing[0]) return;
+
+            double mouseX = event.getSceneX();
+            double mouseY = event.getSceneY();
+            double width = scene.getWidth();
+            double height = scene.getHeight();
+
+            boolean onLeft = mouseX < RESIZE_MARGIN;
+            boolean onRight = mouseX > width - RESIZE_MARGIN;
+            boolean onTop = mouseY < RESIZE_MARGIN;
+            boolean onBottom = mouseY > height - RESIZE_MARGIN;
+
+            if ((onLeft || onRight) || (onTop || onBottom)) {
+                if ((onLeft || onRight) && (onTop || onBottom)) {
+                    if (onLeft && onTop) {
+                        scene.setCursor(javafx.scene.Cursor.NW_RESIZE);
+                        childResizeDirection[0] = "NW";
+                    } else if (onRight && onTop) {
+                        scene.setCursor(javafx.scene.Cursor.NE_RESIZE);
+                        childResizeDirection[0] = "NE";
+                    } else if (onLeft && onBottom) {
+                        scene.setCursor(javafx.scene.Cursor.SW_RESIZE);
+                        childResizeDirection[0] = "SW";
+                    } else if (onRight && onBottom) {
+                        scene.setCursor(javafx.scene.Cursor.SE_RESIZE);
+                        childResizeDirection[0] = "SE";
+                    }
+                } else if (onLeft) {
+                    scene.setCursor(javafx.scene.Cursor.W_RESIZE);
+                    childResizeDirection[0] = "W";
+                } else if (onRight) {
+                    scene.setCursor(javafx.scene.Cursor.E_RESIZE);
+                    childResizeDirection[0] = "E";
+                } else if (onTop) {
+                    scene.setCursor(javafx.scene.Cursor.N_RESIZE);
+                    childResizeDirection[0] = "N";
+                } else if (onBottom) {
+                    scene.setCursor(javafx.scene.Cursor.S_RESIZE);
+                    childResizeDirection[0] = "S";
+                }
+            } else {
+                if (!childResizeDirection[0].isEmpty() && !isChildResizing[0]) {
+                    scene.setCursor(javafx.scene.Cursor.DEFAULT);
+                    childResizeDirection[0] = "";
+                }
+            }
+        });
+
+        scene.addEventFilter(javafx.scene.input.MouseEvent.MOUSE_PRESSED, event -> {
+            if (!childResizeDirection[0].isEmpty()) {
+                isChildResizing[0] = true;
+                startX[0] = event.getScreenX();
+                startY[0] = event.getScreenY();
+                startStageX[0] = childStage.getX();
+                startStageY[0] = childStage.getY();
+                startWidth[0] = childStage.getWidth();
+                startHeight[0] = childStage.getHeight();
+                event.consume();
+            }
+        });
+
+        scene.addEventFilter(javafx.scene.input.MouseEvent.MOUSE_DRAGGED, event -> {
+            if (!isChildResizing[0]) return;
+
+            double deltaX = event.getScreenX() - startX[0];
+            double deltaY = event.getScreenY() - startY[0];
+
+            double minWidth = 400;
+            double minHeight = 300;
+
+            switch (childResizeDirection[0]) {
+                case "E":
+                    childStage.setWidth(Math.max(minWidth, startWidth[0] + deltaX));
+                    break;
+
+                case "W":
+                    double newWidthW = startWidth[0] - deltaX;
+                    if (newWidthW >= minWidth) {
+                        childStage.setX(startStageX[0] + deltaX);
+                        childStage.setWidth(newWidthW);
+                    }
+                    break;
+
+                case "S":
+                    childStage.setHeight(Math.max(minHeight, startHeight[0] + deltaY));
+                    break;
+
+                case "N":
+                    double newHeightN = startHeight[0] - deltaY;
+                    if (newHeightN >= minHeight) {
+                        childStage.setY(startStageY[0] + deltaY);
+                        childStage.setHeight(newHeightN);
+                    }
+                    break;
+
+                case "SE":
+                    childStage.setWidth(Math.max(minWidth, startWidth[0] + deltaX));
+                    childStage.setHeight(Math.max(minHeight, startHeight[0] + deltaY));
+                    break;
+
+                case "SW":
+                    double newWidthSW = startWidth[0] - deltaX;
+                    if (newWidthSW >= minWidth) {
+                        childStage.setX(startStageX[0] + deltaX);
+                        childStage.setWidth(newWidthSW);
+                    }
+                    childStage.setHeight(Math.max(minHeight, startHeight[0] + deltaY));
+                    break;
+
+                case "NE":
+                    childStage.setWidth(Math.max(minWidth, startWidth[0] + deltaX));
+                    double newHeightNE = startHeight[0] - deltaY;
+                    if (newHeightNE >= minHeight) {
+                        childStage.setY(startStageY[0] + deltaY);
+                        childStage.setHeight(newHeightNE);
+                    }
+                    break;
+
+                case "NW":
+                    double newWidthNW = startWidth[0] - deltaX;
+                    double newHeightNW = startHeight[0] - deltaY;
+                    if (newWidthNW >= minWidth) {
+                        childStage.setX(startStageX[0] + deltaX);
+                        childStage.setWidth(newWidthNW);
+                    }
+                    if (newHeightNW >= minHeight) {
+                        childStage.setY(startStageY[0] + deltaY);
+                        childStage.setHeight(newHeightNW);
+                    }
+                    break;
+            }
+
+            event.consume();
+        });
+
+        scene.addEventFilter(javafx.scene.input.MouseEvent.MOUSE_RELEASED, event -> {
+            if (isChildResizing[0]) {
+                isChildResizing[0] = false;
+                childResizeDirection[0] = "";
+                scene.setCursor(javafx.scene.Cursor.DEFAULT);
+                event.consume();
+            }
+        });
+    }
+
+    // Cria card visual para cada lote
     private VBox createCard(LoteEstoque lote) {
         VBox itemBox = new VBox(8);
         itemBox.setAlignment(Pos.CENTER);
         itemBox.getStyleClass().add("card");
 
-        // Store lote reference for quick access
+        // Armazena referência do lote para acesso rápido
         itemBox.setUserData(lote);
 
         Produto produto = lote.getProduto();
         Fornecedor fornecedor = lote.getFornecedor();
 
         String imagePath = ImageService.getImagePath(produto.getUrlImagem());
-        ImageView imageView = new ImageView(new Image(imagePath));
+        Image originalImage = new Image(imagePath);
+
+        // Inverte a cor da imagem padrão no tema claro
+        boolean isDefaultImage = produto.getUrlImagem().equals("med.png") ||
+                produto.getUrlImagem().equals("file:med.png") ||
+                produto.getUrlImagem() == null;
+
+        Image displayImage = originalImage;
+        if (!isDarkTheme && isDefaultImage) {
+            displayImage = invertImage(originalImage);
+        }
+
+        ImageView imageView = new ImageView(displayImage);
         imageView.setFitWidth(80);
         imageView.setFitHeight(80);
         imageView.setPreserveRatio(true);
 
         Label nameLabel = new Label(produto.getNome());
         nameLabel.getStyleClass().add("name");
-        nameLabel.setWrapText(true);
-        nameLabel.setMaxWidth(150);
+        nameLabel.setMaxWidth(145);
         nameLabel.setAlignment(Pos.CENTER);
+        nameLabel.setTextAlignment(TextAlignment.CENTER);
 
         Label batchLabel = new Label("Lote: " + lote.getNumeroLote());
         batchLabel.getStyleClass().add("batch");
 
         Label fornecedorLabel = new Label("Fornecedor: " + (fornecedor != null ? fornecedor.getNome() : "N/A"));
         fornecedorLabel.getStyleClass().add("fornecedor");
-        fornecedorLabel.setWrapText(true);
-        fornecedorLabel.setMaxWidth(150);
+        fornecedorLabel.setMaxWidth(145);
         fornecedorLabel.setAlignment(Pos.CENTER);
+        fornecedorLabel.setTextAlignment(TextAlignment.CENTER);
 
         Label qtyLabel = new Label("Quantidade: " + lote.getQuantidadeAtual());
         qtyLabel.getStyleClass().add("quantity");
 
+        // Estilização por nível de estoque
         if (lote.getQuantidadeAtual() < lote.getAlertThreshold()) {
             qtyLabel.getStyleClass().add("low");
         } else if (lote.getQuantidadeAtual() == lote.getAlertThreshold()) {
@@ -1116,49 +1912,52 @@ public class Controller {
         dateLabel.getStyleClass().add("validity");
 
         LocalDate hoje = LocalDate.now();
-        if (lote.getDataValidade().isBefore(hoje)) {
+        boolean loteVencido = lote.getDataValidade().isBefore(hoje);
+
+        if (loteVencido) {
             dateLabel.getStyleClass().add("expired");
-        } else if (lote.getDataValidade().isBefore(hoje.plusDays(7))) {
+        } else if (lote.getDataValidade().isBefore(hoje.plusDays(30))) {
             dateLabel.getStyleClass().add("near");
         }
 
         HBox buttons = new HBox(5);
         buttons.setAlignment(Pos.CENTER);
-        Button plusBtn = new Button("+");
+        Button plusBtn = new Button("✚");
         plusBtn.getStyleClass().add("button");
-        Button minusBtn = new Button("-");
+        Button minusBtn = new Button("−");
         minusBtn.getStyleClass().add("button");
-        Button delBtn = new Button("x");
-        delBtn.getStyleClass().addAll("button", "delete");
+        Button delBtn = new Button("✖");
+        delBtn.getStyleClass().addAll("button");
 
+        // Desabilita botões para lotes vencidos
+        if (loteVencido) {
+            plusBtn.setDisable(true);
+            minusBtn.setDisable(true);
+            plusBtn.setStyle("-fx-opacity: 0.5;");
+            minusBtn.setStyle("-fx-opacity: 0.5;");
+        }
         plusBtn.setOnAction(e -> {
             e.consume();
             incrementarQuantidade(lote, 1);
         });
-
         minusBtn.setOnAction(e -> {
             e.consume();
             decrementarQuantidade(lote, 1);
         });
-
         delBtn.setOnAction(e -> {
             e.consume();
             excluirLote(lote);
         });
-
         buttons.getChildren().addAll(plusBtn, minusBtn, delBtn);
-        itemBox.getChildren().addAll(imageView, nameLabel, batchLabel,
-                fornecedorLabel, qtyLabel, dateLabel, buttons);
+        itemBox.getChildren().addAll(imageView, nameLabel, batchLabel, fornecedorLabel, qtyLabel, dateLabel, buttons);
 
-        // OPTIMIZED CLICK HANDLER - Only updates styling, no database access
+        // Handler de clique otimizado - apenas atualiza estilo
         itemBox.setCursor(javafx.scene.Cursor.HAND);
-
         itemBox.setOnMouseClicked(e -> {
             if (editingLote != null && editingLote.getIdLote() != lote.getIdLote()) {
                 mostrarAlerta("Aviso", "Termine de editar o lote atual antes de selecionar outro!");
                 return;
             }
-
             if (selectedLote != null && selectedLote.getIdLote() == lote.getIdLote()) {
                 selectedLote = null;
                 System.out.println("Lote desselecionado: " + lote.getNumeroLote());
@@ -1166,21 +1965,47 @@ public class Controller {
                 selectedLote = lote;
                 System.out.println("Lote selecionado: " + lote.getNumeroLote() + " - " + produto.getNome());
             }
-
-            // INSTANT UPDATE - only changes CSS classes, no database or DOM rebuild
+            // Atualização instantânea - apenas muda classes CSS
             updateCardStyling();
         });
 
-        // Apply initial styling
+        // Aplica estilo inicial
         if (editingLote != null && lote.getIdLote() == editingLote.getIdLote()) {
             itemBox.getStyleClass().add("editing");
         } else if (selectedLote != null && lote.getIdLote() == selectedLote.getIdLote()) {
             itemBox.getStyleClass().add("selected");
         }
-
         return itemBox;
     }
 
+    private Image invertImage(Image image) {
+        int width = (int) image.getWidth();
+        int height = (int) image.getHeight();
+
+        javafx.scene.image.WritableImage invertedImage = new javafx.scene.image.WritableImage(width, height);
+        javafx.scene.image.PixelReader pixelReader = image.getPixelReader();
+        javafx.scene.image.PixelWriter pixelWriter = invertedImage.getPixelWriter();
+
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                javafx.scene.paint.Color color = pixelReader.getColor(x, y);
+
+                // Inverte as cores RGB mantendo o alpha (transparência)
+                javafx.scene.paint.Color invertedColor = new javafx.scene.paint.Color(
+                        1.0 - color.getRed(),
+                        1.0 - color.getGreen(),
+                        1.0 - color.getBlue(),
+                        color.getOpacity()
+                );
+
+                pixelWriter.setColor(x, y, invertedColor);
+            }
+        }
+
+        return invertedImage;
+    }
+
+    // Exibe janela com lista de alertas
     private void mostrarNotificacoes(List<String> alertas) {
         VBox content = new VBox(10);
         content.getStyleClass().add("notification-content");
@@ -1210,18 +2035,13 @@ public class Controller {
         scrollPane.getStyleClass().add("notification-scroll");
         scrollPane.setFocusTraversable(false);
 
-        Stage stage = new Stage();
-        stage.setTitle("Alertas de Estoque");
-
         int itemHeight = 45;
         int baseHeight = 70;
         int totalHeight = baseHeight + alertas.size() * itemHeight;
         totalHeight = Math.max(totalHeight, 120);
         totalHeight = Math.min(totalHeight, 400);
 
-        Scene scene = new Scene(scrollPane, 700, totalHeight);
-        scene.getStylesheets().add(getClass().getResource("styles.css").toExternalForm());
-        stage.setScene(scene);
+        Stage stage = createCustomStage("Alertas de Estoque", scrollPane, 700, totalHeight);
         stage.show();
     }
 }
