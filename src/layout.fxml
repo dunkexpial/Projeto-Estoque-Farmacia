@@ -29,9 +29,6 @@
                     <ComboBox fx:id="filterCombo" prefWidth="140"/>
                     <HBox styleClass="right-header-section" spacing="10" alignment="CENTER_RIGHT">
                         <Button fx:id="themeToggleBtn" text="🌙" onAction="#toggleTheme" styleClass="theme-toggle-btn"/>
-
-                        <!-- BOTÃO RELATÓRIO REMOVIDO DAQUI -->
-
                         <Button text="Alertas" onAction="#mostrarAlertas" styleClass="button, primary-color"/>
                         <Button text="Histórico" onAction="#mostrarHistorico" styleClass="button, primary-color"/>
                         <Label fx:id="totalLabel" text="Total: 0" styleClass="total-label-header"/>

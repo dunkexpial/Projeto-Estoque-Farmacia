@@ -25,7 +25,6 @@ import model.LoteEstoque;
 import model.Fornecedor;
 import model.Produto;
 import model.LogEntry;
-import model.RelatorioService;
 import model.ImageService;
 import java.io.File;
 import java.io.IOException;
@@ -765,43 +764,6 @@ public class Controller {
         }));
     }
 
-    @FXML
-    public void gerarRelatorioMensal() {
-        try {
-            LocalDate hoje = LocalDate.now();
-            List<LogEntry> logsDoMes = logDAO.listarPorMes(hoje.getMonthValue(), hoje.getYear());
-
-            if (logsDoMes.isEmpty()) {
-                mostrarAlerta("Aviso", "Não há movimentações registradas neste mês.");
-                return;
-            }
-
-            FileChooser fileChooser = new FileChooser();
-            fileChooser.setTitle("Salvar Relatório Mensal");
-            fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Arquivo Excel/CSV", "*.csv"));
-
-            // Sugestão de nome de arquivo
-            String nomeArquivo = "Relatorio_Movimentacao_" + hoje.getMonth() + "_" + hoje.getYear() + ".csv";
-            fileChooser.setInitialFileName(nomeArquivo);
-
-            File file = fileChooser.showSaveDialog(gridPane.getScene().getWindow());
-
-            if (file != null) {
-                RelatorioService.gerarRelatorioCSV(logsDoMes, file);
-
-                Alert alert = new Alert(Alert.AlertType.INFORMATION);
-                alert.setTitle("Sucesso");
-                alert.setHeaderText(null);
-                alert.setContentText("Relatório gerado com sucesso!\nSalvo em: " + file.getAbsolutePath());
-                alert.showAndWait();
-            }
-
-        } catch (Exception e) {
-            mostrarAlerta("Erro", "Falha ao gerar relatório: " + e.getMessage());
-            e.printStackTrace();
-        }
-    }
-
     // ==================== SISTEMA DE LOG ====================
 
     // Registra operação no log com limite de 50 entradas
@@ -845,6 +807,7 @@ public class Controller {
         }
     }
 
+    // Exibe janela com histórico de alterações filtráveis
     @FXML
     public void mostrarHistorico() {
         VBox content = new VBox(10);
@@ -852,7 +815,7 @@ public class Controller {
         content.setAlignment(Pos.TOP_CENTER);
         content.setPadding(new Insets(15));
 
-        Label title = new Label("Histórico de Alterações");
+        Label title = new Label("Historico de Alteracoes");
         title.getStyleClass().add("notification-title");
         content.getChildren().add(title);
 
@@ -875,17 +838,10 @@ public class Controller {
         Button aplicarFiltro = new Button("Aplicar Filtro");
         aplicarFiltro.getStyleClass().addAll("button", "primary-color");
 
-        // === BOTÃO RELATÓRIO ADICIONADO AQUI ===
-        Button btnRelatorio = new Button("📄 Relatório Mensal");
-        btnRelatorio.getStyleClass().addAll("button", "accent-color");
-        btnRelatorio.setOnAction(e -> gerarRelatorioMensal());
-
         filterBox.getChildren().addAll(
-                new Label("Op:"), tipoFiltro,
-                new Label("Ent:"), entidadeFiltro,
-                aplicarFiltro,
-                new Separator(javafx.geometry.Orientation.VERTICAL), // Separador visual
-                btnRelatorio // Botão inserido na barra
+                new Label("Operacao:"), tipoFiltro,
+                new Label("Entidade:"), entidadeFiltro,
+                aplicarFiltro
         );
         content.getChildren().add(filterBox);
 
@@ -903,10 +859,8 @@ public class Controller {
 
                 List<LogEntry> logsFiltrados = logs.stream()
                         .filter(log -> {
-                            boolean tipoMatch = tipoFiltro.getValue().equals("Todas") ||
-                                    log.getTipoOperacao().equals(tipoFiltro.getValue());
-                            boolean entidadeMatch = entidadeFiltro.getValue().equals("Todas") ||
-                                    log.getEntidade().equals(entidadeFiltro.getValue());
+                            boolean tipoMatch = tipoFiltro.getValue().equals("Todas") || log.getTipoOperacao().equals(tipoFiltro.getValue());
+                            boolean entidadeMatch = entidadeFiltro.getValue().equals("Todas") || log.getEntidade().equals(entidadeFiltro.getValue());
                             return tipoMatch && entidadeMatch;
                         })
                         .sorted((l1, l2) -> l2.getDataHora().compareTo(l1.getDataHora()))
@@ -963,13 +917,8 @@ public class Controller {
         scrollPane.getStyleClass().add("notification-scroll");
         scrollPane.setFocusTraversable(false);
 
-        Stage stage = new Stage();
-        stage.setTitle("Histórico de Alterações");
-
-        // Ajustei um pouco a largura da janela para caber o botão extra
-        Scene scene = new Scene(scrollPane, 900, 600);
-        scene.getStylesheets().add(getClass().getResource("styles.css").toExternalForm());
-        stage.setScene(scene);
+        // USA O NOVO MÉTODO PARA CRIAR JANELA CUSTOMIZADA
+        Stage stage = createCustomStage("Historico de Alteracoes", scrollPane, 800, 600);
         stage.show();
     }
 
