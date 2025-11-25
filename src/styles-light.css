@@ -39,7 +39,6 @@
     -fx-text-fill: #666666;
 }
 
-/* TextFields e ComboBoxes */
 .text-field, .combo-box {
     -fx-background-color: #FFFFFF;
     -fx-text-fill: #333333;
@@ -219,23 +218,23 @@
     -fx-font-size: 13px;
 }
 
-.button.primary-color { 
-    -fx-background-color: #FF4444; 
+.button.primary-color {
+    -fx-background-color: #FF4444;
     -fx-padding: 6 12;
 }
 
-.button.secondary-color { 
-    -fx-background-color: #FF4444; 
+.button.secondary-color {
+    -fx-background-color: #FF4444;
     -fx-padding: 6 12;
 }
 
-.button.accent-color { 
-    -fx-background-color: #FF4444; 
+.button.accent-color {
+    -fx-background-color: #FF4444;
     -fx-padding: 6 12;
 }
 
-.button.delete-color { 
-    -fx-background-color: #CC0000; 
+.button.delete-color {
+    -fx-background-color: #CC0000;
     -fx-padding: 6 12;
 }
 
@@ -464,4 +463,84 @@
 
 .root {
     -fx-background-color: transparent;
+}
+
+.hbox {
+    -fx-padding: 15 25;
+    -fx-background-color: #FFFFFF;
+    -fx-alignment: CENTER_LEFT;
+}
+
+.label-small {
+    -fx-font-size: 11px;
+    -fx-text-fill: #666666;
+    -fx-font-weight: bold;
+}
+
+.button {
+    -fx-min-width: 100px;
+    -fx-alignment: CENTER;
+}
+
+.total-label-header {
+    -fx-font-size: 20px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #FF4444;
+}
+
+.button.warning-color {
+    -fx-background-color: #FF4444;
+    -fx-text-fill: white;
+}
+
+.button.warning-color:hover {
+    -fx-background-color: #FF6B6B;
+}
+
+/* ====== CARD COMPACTO ====== */
+.card {
+    /* Padding reduzido de 15 para 8 para diminuir a box */
+    -fx-padding: 8;
+
+    /* Mantém o resto */
+    -fx-border-radius: 8;
+    -fx-background-radius: 8;
+    -fx-effect: dropshadow(two-pass-box, rgba(0,0,0,0.15), 5, 0, 0, 2);
+    -fx-alignment: CENTER;
+    /* Tamanho mínimo e máximo para padronizar */
+    -fx-min-width: 140px;
+    -fx-max-width: 140px;
+}
+
+/* Fontes menores dentro do card */
+.card .name {
+    -fx-font-size: 12px; /* Reduzido */
+    -fx-font-weight: bold;
+}
+
+.card .label {
+    -fx-font-size: 10px; /* Reduzido */
+}
+
+.card .quantity, .card .validity {
+    -fx-font-size: 11px;
+}
+
+/* Botões pequenos dentro do card */
+.card-btn {
+    -fx-background-color: #FF4444;
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+    -fx-font-size: 11px;
+    -fx-padding: 4 10;
+    -fx-background-radius: 4;
+    -fx-cursor: hand;
+}
+
+.card-btn:hover {
+    -fx-background-color: #FF6B6B;
+}
+
+.card-btn.delete {
+    -fx-background-color: #BB0000;
 }

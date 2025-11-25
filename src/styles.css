@@ -526,6 +526,32 @@
 }
 
 .close-btn:hover {
-    -fx-background-color: #E81123; /* Vermelho padrão de fechar do Windows */
+    -fx-background-color: #E81123;
     -fx-text-fill: white;
+}
+
+.hbox {
+    -fx-padding: 15 25;
+    -fx-background-color: #252525;
+    -fx-alignment: CENTER_LEFT;
+}
+
+
+.label-small {
+    -fx-font-size: 11px;
+    -fx-text-fill: #999999;
+    -fx-font-weight: bold;
+}
+
+
+.button {
+    -fx-min-width: 100px;
+    -fx-alignment: CENTER;
+}
+
+
+.total-label-header {
+    -fx-font-size: 20px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #FF4444;
 }

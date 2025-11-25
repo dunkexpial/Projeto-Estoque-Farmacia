@@ -2186,4 +2186,68 @@ public class Controller {
             }
         }
     }
+
+    @FXML
+    private void exportarEstoque() {
+        if (lotesCache == null || lotesCache.isEmpty()) {
+            mostrarAlerta("Aviso", "Não há itens no estoque para exportar.");
+            return;
+        }
+
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle("Salvar Relatório de Estoque");
+        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Arquivos CSV (*.csv)", "*.csv"));
+        fileChooser.setInitialFileName("estoque_completo_" + LocalDate.now() + ".csv");
+
+        File file = fileChooser.showSaveDialog(stage); // Usa o 'stage' da janela principal
+
+        if (file != null) {
+            try (PrintWriter writer = new PrintWriter(file, StandardCharsets.UTF_8)) {
+                // Escreve o BOM para o Excel reconhecer acentos corretamente
+                writer.write('\ufeff');
+
+                // Cabeçalho das colunas
+                writer.println("Produto;Lote;Distribuidor/Fornecedor;Quantidade;Data Entrada;Vencimento;Status");
+
+                // Preenche os dados
+                for (LoteEstoque lote : lotesCache) {
+                    String status = "OK";
+                    if (lote.getDataValidade().isBefore(LocalDate.now())) status = "VENCIDO";
+                    else if (lote.getQuantidadeAtual() < lote.getAlertThreshold()) status = "BAIXO ESTOQUE";
+
+                    writer.printf("%s;%s;%s;%d;%s;%s;%s%n",
+                            lote.getProduto().getNome(),
+                            lote.getNumeroLote(),
+                            (lote.getFornecedor() != null ? lote.getFornecedor().getNome() : "Sem Fornecedor"),
+                            lote.getQuantidadeAtual(),
+                            lote.getDataEntrada().format(formatter),
+                            lote.getDataValidade().format(formatter),
+                            status
+                    );
+                }
+
+                // Alerta de Sucesso Estilizado
+                Alert alert = new Alert(Alert.AlertType.INFORMATION);
+                alert.setTitle("Sucesso");
+                alert.setHeaderText(null);
+                alert.setContentText("Relatório de estoque exportado com sucesso!");
+
+                // Aplica o tema escuro/claro no alerta também
+                DialogPane dialogPane = alert.getDialogPane();
+                dialogPane.getStylesheets().add(getClass().getResource(isDarkTheme ? "styles.css" : "styles-light.css").toExternalForm());
+
+                if (isDarkTheme) {
+                    dialogPane.setStyle("-fx-background-color: #2b2b2b;");
+                    javafx.scene.Node content = dialogPane.lookup(".content.label");
+                    if (content != null) content.setStyle("-fx-text-fill: white;");
+                }
+
+                alert.showAndWait();
+
+            } catch (IOException ex) {
+                mostrarAlerta("Erro", "Falha ao salvar o arquivo: " + ex.getMessage());
+                ex.printStackTrace();
+            }
+        }
+    }
 }

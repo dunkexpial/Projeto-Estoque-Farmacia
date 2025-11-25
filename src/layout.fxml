@@ -21,21 +21,38 @@
 
         <BorderPane fx:id="mainPane" VBox.vgrow="ALWAYS" style="-fx-background-radius: 0 0 15 15;">
             <top>
-                <HBox styleClass="hbox" spacing="10" alignment="CENTER_LEFT">
-                    <Label id="title" text="Sistema de Estoque"/>
-                    <Region HBox.hgrow="ALWAYS"/>
-                    <Label text="Buscar:" styleClass="label"/>
-                    <TextField fx:id="searchField" promptText="Digite o nome do produto" prefWidth="200"/>
-                    <Label text="Ordenar:" styleClass="label"/>
-                    <ComboBox fx:id="sortCombo" prefWidth="140"/>
-                    <Label text="Filtrar:" styleClass="label"/>
-                    <ComboBox fx:id="filterCombo" prefWidth="140"/>
-                    <HBox styleClass="right-header-section" spacing="10" alignment="CENTER_RIGHT">
-                        <Button text="Alertas" onAction="#mostrarAlertas" styleClass="button, primary-color"/>
-                        <Button text="Histórico" onAction="#mostrarHistorico" styleClass="button, primary-color"/>
-                        <Label fx:id="totalLabel" text="Total: 0" styleClass="total-label-header"/>
+                <VBox spacing="0">
+
+                    <HBox styleClass="hbox" spacing="20" alignment="CENTER_LEFT" prefHeight="70">
+
+                        <Label id="title" text="Estoque" style="-fx-font-size: 20px; -fx-padding: 0 10 0 0;"/>
+
+                        <VBox spacing="2" alignment="CENTER_LEFT">
+                            <Label text="Buscar Produto" styleClass="label-small"/>
+                            <TextField fx:id="searchField" promptText="Digite o nome..." prefWidth="220"/>
+                        </VBox>
+
+                        <VBox spacing="2" alignment="CENTER_LEFT">
+                            <Label text="Ordenar por" styleClass="label-small"/>
+                            <ComboBox fx:id="sortCombo" prefWidth="130"/>
+                        </VBox>
+
+                        <VBox spacing="2" alignment="CENTER_LEFT">
+                            <Label text="Filtrar Status" styleClass="label-small"/>
+                            <ComboBox fx:id="filterCombo" prefWidth="130"/>
+                        </VBox>
+
+                        <Region HBox.hgrow="ALWAYS"/>
+
+                        <HBox spacing="10" alignment="CENTER_RIGHT">
+                            <Button text="Exportar" onAction="#exportarEstoque" styleClass="button, accent-color"/>
+                            <Button text="Alertas" onAction="#mostrarAlertas" styleClass="button, warning-color"/>
+                            <Button text="Histórico" onAction="#mostrarHistorico" styleClass="button, primary-color"/>
+                            <Separator orientation="VERTICAL"/>
+                            <Label fx:id="totalLabel" text="Total: 0" styleClass="total-label-header"/>
+                        </HBox>
                     </HBox>
-                </HBox>
+                </VBox>
             </top>
 
             <center>
