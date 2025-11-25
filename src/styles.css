@@ -488,3 +488,44 @@
 .root {
     -fx-background-color: transparent;
 }
+
+/* ====== Janela Personalizada ====== */
+.root-pane {
+    -fx-background-color: transparent;
+}
+
+.main-container {
+    -fx-background-radius: 15;
+    -fx-border-radius: 15;
+    -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.3), 10, 0, 0, 0);
+}
+
+.title-bar {
+    -fx-background-radius: 15 15 0 0;
+    -fx-padding: 5 10 5 10;
+}
+
+.window-title {
+    -fx-font-family: 'Segoe UI', sans-serif;
+    -fx-font-weight: bold;
+    -fx-font-size: 14px;
+}
+
+.window-btn {
+    -fx-background-color: transparent;
+    -fx-text-fill: #999;
+    -fx-font-weight: bold;
+    -fx-font-size: 14px;
+    -fx-cursor: hand;
+    -fx-min-width: 30px;
+}
+
+.window-btn:hover {
+    -fx-background-color: rgba(255,255,255,0.1);
+    -fx-text-fill: white;
+}
+
+.close-btn:hover {
+    -fx-background-color: #E81123; /* Vermelho padrão de fechar do Windows */
+    -fx-text-fill: white;
+}

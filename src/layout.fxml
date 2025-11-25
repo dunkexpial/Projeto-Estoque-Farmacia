@@ -2,22 +2,25 @@
 
 <?import javafx.scene.layout.*?>
 <?import javafx.scene.control.*?>
-<?import javafx.scene.image.ImageView?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.shape.SVGPath?>
 
-<StackPane xmlns:fx="http://javafx.com/fxml" fx:controller="Controller">
-    <BorderPane fx:id="mainPane" styleClass="border-pane">
-        <top>
-            <VBox spacing="0">
-                <!-- BARRA DE TÍTULO CUSTOMIZADA -->
-                <HBox fx:id="titleBar" styleClass="custom-titlebar" alignment="CENTER_LEFT" spacing="10">
-                    <Label text="🏥 Farmácia - Estoque de Remédios" styleClass="titlebar-title"/>
-                    <Region HBox.hgrow="ALWAYS"/>
-                    <Button text="−" onAction="#minimizeWindow" styleClass="titlebar-btn"/>
-                    <Button text="□" onAction="#maximizeWindow" styleClass="titlebar-btn"/>
-                    <Button text="✕" onAction="#closeWindow" styleClass="titlebar-btn, titlebar-close"/>
-                </HBox>
+<StackPane fx:id="rootPane" xmlns:fx="http://javafx.com/fxml" fx:controller="Controller" styleClass="root-pane">
+    <padding><Insets top="10" right="10" bottom="10" left="10"/></padding>
 
-                <!-- BARRA DE BUSCA E FILTROS -->
+    <VBox fx:id="mainContainer" styleClass="main-container">
+
+        <HBox fx:id="titleBar" styleClass="custom-titlebar" alignment="CENTER_LEFT" spacing="10" minHeight="40" prefHeight="40">
+            <Label text="🏥 Farmácia - Estoque de Remédios" styleClass="titlebar-title"/>
+            <Region HBox.hgrow="ALWAYS"/>
+            <Button fx:id="themeToggleBtn" text="🌙" onAction="#toggleTheme" styleClass="theme-toggle-btn"/>
+            <Button text="−" onAction="#minimizeWindow" styleClass="titlebar-btn"/>
+            <Button text="□" onAction="#maximizeWindow" styleClass="titlebar-btn"/>
+            <Button text="✕" onAction="#closeWindow" styleClass="titlebar-btn, titlebar-close"/>
+        </HBox>
+
+        <BorderPane fx:id="mainPane" VBox.vgrow="ALWAYS" style="-fx-background-radius: 0 0 15 15;">
+            <top>
                 <HBox styleClass="hbox" spacing="10" alignment="CENTER_LEFT">
                     <Label id="title" text="Sistema de Estoque"/>
                     <Region HBox.hgrow="ALWAYS"/>
@@ -28,85 +31,81 @@
                     <Label text="Filtrar:" styleClass="label"/>
                     <ComboBox fx:id="filterCombo" prefWidth="140"/>
                     <HBox styleClass="right-header-section" spacing="10" alignment="CENTER_RIGHT">
-                        <Button fx:id="themeToggleBtn" text="🌙" onAction="#toggleTheme" styleClass="theme-toggle-btn"/>
                         <Button text="Alertas" onAction="#mostrarAlertas" styleClass="button, primary-color"/>
                         <Button text="Histórico" onAction="#mostrarHistorico" styleClass="button, primary-color"/>
                         <Label fx:id="totalLabel" text="Total: 0" styleClass="total-label-header"/>
                     </HBox>
                 </HBox>
-            </VBox>
-        </top>
+            </top>
 
-        <center>
-            <ScrollPane fitToWidth="true" styleClass="scroll-pane">
-                <TilePane fx:id="gridPane" prefColumns="4" styleClass="tile-pane"/>
-            </ScrollPane>
-        </center>
+            <center>
+                <ScrollPane fitToWidth="true" styleClass="scroll-pane">
+                    <TilePane fx:id="gridPane" prefColumns="4" styleClass="tile-pane"/>
+                </ScrollPane>
+            </center>
 
-        <right>
-            <VBox styleClass="vbox" spacing="0" alignment="TOP_CENTER" minHeight="0">
-                <HBox styleClass="toggle-hbox" spacing="0" alignment="CENTER">
-                    <ToggleButton fx:id="gerenciarLotesBtn" text="Gerenciar Lotes" selected="true" onAction="#alternarPainel">
-                        <ToggleGroup fx:id="panelToggleGroup"/>
-                    </ToggleButton>
-                    <ToggleButton fx:id="gerenciarFornecedoresBtn" text="Gerenciar Fornecedores" toggleGroup="$panelToggleGroup" onAction="#alternarPainel"/>
-                </HBox>
+            <right>
+                <VBox styleClass="vbox" spacing="0" alignment="TOP_CENTER" minHeight="0">
+                    <HBox styleClass="toggle-hbox" spacing="0" alignment="CENTER">
+                        <ToggleButton fx:id="gerenciarLotesBtn" text="Gerenciar Lotes" selected="true" onAction="#alternarPainel">
+                            <ToggleGroup fx:id="panelToggleGroup"/>
+                        </ToggleButton>
+                        <ToggleButton fx:id="gerenciarFornecedoresBtn" text="Gerenciar Fornecedores" toggleGroup="$panelToggleGroup" onAction="#alternarPainel"/>
+                    </HBox>
 
-                <!-- ENVOLVA OS PAINÉIS EM UM SCROLLPANE -->
-                <ScrollPane fitToWidth="true" fitToHeight="true" styleClass="scroll-pane" VBox.vgrow="ALWAYS">
-                    <VBox spacing="0">
-                        <!-- PAINEL DE LOTES -->
-                        <VBox fx:id="painelLote" styleClass="vbox-panel" spacing="12" alignment="TOP_CENTER">
-                            <Label text="+ Novo Lote de Estoque" styleClass="panel-title"/>
-
-                            <TextField fx:id="nomeProdutoField" promptText="Nome do Produto"/>
-
-                            <ComboBox fx:id="fornecedorCombo" promptText="Selecione o fornecedor" maxWidth="Infinity"/>
-
-                            <TextField fx:id="numeroLoteField" promptText="Identificador do Lote"/>
-                            <TextField fx:id="qtdField" promptText="Quantidade"/>
-                            <TextField fx:id="dataEntradaField" promptText="Data de Entrada"/>
-                            <TextField fx:id="validadeField" promptText="Data de Validade"/>
-                            <TextField fx:id="thresholdField" promptText="Quantidade Alerta"/>
-
-                            <Separator/>
-                            <Label text="Imagem do Produto:" styleClass="label"/>
-
-                            <VBox spacing="8" alignment="CENTER">
-                                <Label fx:id="imagemSelecionadaLabel" text="Nenhuma imagem selecionada" styleClass="image-label"/>
-
-                                <HBox spacing="5" alignment="CENTER">
-                                    <Button fx:id="selecionarImagemBtn" text="Selecionar Imagem" onAction="#selecionarImagem" styleClass="button, accent-color"/>
-                                    <Button text="Remover" onAction="#removerImagem" styleClass="button, accent-color"/>
+                    <ScrollPane fitToWidth="true" fitToHeight="true" styleClass="scroll-pane" VBox.vgrow="ALWAYS">
+                        <VBox spacing="0">
+                            <VBox fx:id="painelLote" styleClass="vbox-panel" spacing="12" alignment="TOP_CENTER">
+                                <Label text="+ Novo Lote de Estoque" styleClass="panel-title"/>
+                                <TextField fx:id="nomeProdutoField" promptText="Nome do Produto"/>
+                                <ComboBox fx:id="fornecedorCombo" promptText="Selecione o fornecedor" maxWidth="Infinity"/>
+                                <TextField fx:id="numeroLoteField" promptText="Identificador do Lote"/>
+                                <TextField fx:id="qtdField" promptText="Quantidade"/>
+                                <TextField fx:id="dataEntradaField" promptText="Data de Entrada"/>
+                                <TextField fx:id="validadeField" promptText="Data de Validade"/>
+                                <TextField fx:id="thresholdField" promptText="Quantidade Alerta"/>
+                                <Separator/>
+                                <Label text="Imagem do Produto:" styleClass="label"/>
+                                <VBox spacing="8" alignment="CENTER">
+                                    <Label fx:id="imagemSelecionadaLabel" text="Nenhuma imagem selecionada" styleClass="image-label"/>
+                                    <HBox spacing="5" alignment="CENTER">
+                                        <Button fx:id="selecionarImagemBtn" text="Selecionar Imagem" onAction="#selecionarImagem" styleClass="button, accent-color"/>
+                                        <Button text="Remover" onAction="#removerImagem" styleClass="button, accent-color"/>
+                                    </HBox>
+                                </VBox>
+                                <Separator/>
+                                <HBox spacing="8" alignment="CENTER">
+                                    <Button text="Salvar" onAction="#adicionarLote" styleClass="button, primary-color"/>
+                                    <Button fx:id="editarSelecionadoBtn" text="Editar" styleClass="button, accent-color"/>
+                                    <Button fx:id="excluirSelecionadoBtn" text="Excluir" styleClass="button, delete-color"/>
                                 </HBox>
                             </VBox>
-                            <Separator/>
-                            <HBox spacing="8" alignment="CENTER">
-                                <Button text="Salvar" onAction="#adicionarLote" styleClass="button, primary-color"/>
-                                <Button fx:id="editarSelecionadoBtn" text="Editar" styleClass="button, accent-color"/>
-                                <Button fx:id="excluirSelecionadoBtn" text="Excluir" styleClass="button, delete-color"/>
-                            </HBox>
-                        </VBox>
 
-                        <!-- PAINEL DE FORNECEDORES -->
-                        <VBox fx:id="painelFornecedor" styleClass="vbox-panel" spacing="12" alignment="TOP_CENTER" visible="false" managed="false">
-                            <Label text="Gerenciar Fornecedores" styleClass="panel-title"/>
-                            <TextField fx:id="nomeFornecedorField" promptText="Nome do Fornecedor"/>
-                            <TextField fx:id="cnpjField" promptText="CNPJ do Fornecedor"/>
-                            <TextField fx:id="telefoneField" promptText="Telefone do Fornecedor"/>
-                            <TextField fx:id="emailField" promptText="E-mail do Fornecedor"/>
-                            <Button fx:id="adicionarFornecedorBtn" text="Adicionar / Salvar Fornecedor" onAction="#adicionarFornecedor" styleClass="button, primary-color"/>
-                            <Label text="Fornecedores Cadastrados:" styleClass="label"/>
-                            <ListView fx:id="fornecedoresListView" prefHeight="200" styleClass="list-view"/>
-                            <HBox spacing="5" alignment="CENTER">
-                                <Button fx:id="novoFornecedorBtn" text="Novo" onAction="#novoFornecedor" styleClass="button, accent-color"/>
-                                <Button text="Editar" onAction="#editarFornecedor" styleClass="button, accent-color"/>
-                                <Button text="Excluir" onAction="#excluirFornecedor" styleClass="button, delete-color"/>
-                            </HBox>
+                            <VBox fx:id="painelFornecedor" styleClass="vbox-panel" spacing="12" alignment="TOP_CENTER" visible="false" managed="false">
+                                <Label text="Gerenciar Fornecedores" styleClass="panel-title"/>
+                                <TextField fx:id="nomeFornecedorField" promptText="Nome do Fornecedor"/>
+                                <TextField fx:id="cnpjField" promptText="CNPJ do Fornecedor"/>
+                                <TextField fx:id="telefoneField" promptText="Telefone do Fornecedor"/>
+                                <TextField fx:id="emailField" promptText="E-mail do Fornecedor"/>
+                                <Button fx:id="adicionarFornecedorBtn" text="Adicionar / Salvar Fornecedor" onAction="#adicionarFornecedor" styleClass="button, primary-color"/>
+                                <Label text="Fornecedores Cadastrados:" styleClass="label"/>
+                                <ListView fx:id="fornecedoresListView" prefHeight="200" styleClass="list-view"/>
+                                <HBox spacing="5" alignment="CENTER">
+                                    <Button fx:id="novoFornecedorBtn" text="Novo" onAction="#novoFornecedor" styleClass="button, accent-color"/>
+                                    <Button text="Editar" onAction="#editarFornecedor" styleClass="button, accent-color"/>
+                                    <Button text="Excluir" onAction="#excluirFornecedor" styleClass="button, delete-color"/>
+                                </HBox>
+                            </VBox>
                         </VBox>
-                    </VBox>
-                </ScrollPane>
-            </VBox>
-        </right>
-    </BorderPane>
+                    </ScrollPane>
+                </VBox>
+            </right>
+
+            <bottom>
+                <HBox alignment="BOTTOM_RIGHT" prefHeight="10" style="-fx-cursor: se-resize;">
+                    <Region prefWidth="15" prefHeight="15"/>
+                </HBox>
+            </bottom>
+        </BorderPane>
+    </VBox>
 </StackPane>

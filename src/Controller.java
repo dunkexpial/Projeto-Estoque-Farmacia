@@ -27,6 +27,8 @@ import model.Produto;
 import model.LogEntry;
 import model.ImageService;
 import java.io.File;
+import java.io.PrintWriter;
+import java.nio.charset.StandardCharsets;
 import java.io.IOException;
 import java.sql.SQLException;
 import java.time.LocalDate;
@@ -74,6 +76,8 @@ public class Controller {
     @FXML private Button themeToggleBtn;
     @FXML private HBox titleBar;
     @FXML private BorderPane mainPane;
+    @FXML private StackPane rootPane;
+    @FXML private VBox mainContainer;
 
     // Formatadores e variáveis de estado
     private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
@@ -518,7 +522,6 @@ public class Controller {
                 beforeMaxWidth = stage.getWidth();
                 beforeMaxHeight = stage.getHeight();
 
-                // MAXIMIZAR RESPEITANDO A BARRA DE TAREFAS
                 javafx.stage.Screen screen = javafx.stage.Screen.getPrimary();
                 javafx.geometry.Rectangle2D visualBounds = screen.getVisualBounds();
 
@@ -528,32 +531,38 @@ public class Controller {
                 stage.setHeight(visualBounds.getHeight());
 
                 isMaximized = true;
-                updateRoundedCorners(); // ATUALIZA BORDAS
+                updateRoundedCorners();
             }
         }
     }
 
     private void updateRoundedCorners() {
-        Scene scene = stage.getScene();
-        if (scene == null || scene.getRoot() == null) return;
-
-        StackPane root = (StackPane) scene.getRoot();
+        if (rootPane == null) return; // Segurança
 
         if (isMaximized) {
-            root.setClip(null);
-            if (mainPane != null) {
-                mainPane.setStyle("-fx-background-radius: 0; -fx-border-radius: 0;");
+            // Remove o padding (sombra) para ocupar a tela toda
+            rootPane.setPadding(new Insets(0));
+            rootPane.setClip(null);
+
+            // Remove o arredondamento do container principal
+            if (mainContainer != null) {
+                mainContainer.setStyle("-fx-background-radius: 0; -fx-border-radius: 0;");
             }
         } else {
+
+            rootPane.setPadding(new Insets(10));
+
             javafx.scene.shape.Rectangle clip = new javafx.scene.shape.Rectangle();
             clip.setArcWidth(24);
             clip.setArcHeight(24);
-            clip.widthProperty().bind(root.widthProperty());
-            clip.heightProperty().bind(root.heightProperty());
-            root.setClip(clip);
-            // Restaura border-radius do CSS
-            if (mainPane != null) {
-                mainPane.setStyle("-fx-background-radius: 12; -fx-border-radius: 12;");
+            clip.widthProperty().bind(rootPane.widthProperty());
+            clip.heightProperty().bind(rootPane.heightProperty());
+            rootPane.setClip(clip);
+
+
+            if (mainContainer != null) {
+
+                mainContainer.setStyle("");
             }
         }
     }
@@ -678,7 +687,7 @@ public class Controller {
             }
 
             updateGridDisplay();
-            updateChildStagesTheme(); // NOVA LINHA - ATUALIZA JANELAS FILHAS
+            updateChildStagesTheme();
         }
     }
 
@@ -810,77 +819,129 @@ public class Controller {
     // Exibe janela com histórico de alterações filtráveis
     @FXML
     public void mostrarHistorico() {
+        // --- 1. Configuração da Janela Sem Bordas ---
+        Stage stage = new Stage();
+        stage.initStyle(javafx.stage.StageStyle.TRANSPARENT); // Transparente para usar sombras/bordas do CSS
+
+        // --- 2. Criação da Barra de Título Personalizada (Usando CSS) ---
+        HBox titleBar = new HBox();
+        titleBar.setAlignment(Pos.CENTER_RIGHT);
+        titleBar.getStyleClass().add("custom-titlebar"); // Usa a classe do CSS (muda cor auto)
+
+        // Título da Janela
+        Label windowTitle = new Label("Histórico de Alterações");
+        windowTitle.getStyleClass().add("titlebar-title"); // Usa a classe do CSS
+
+        // Espaçador
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, javafx.scene.layout.Priority.ALWAYS);
+
+        // Botão Fechar (X)
+        Button closeBtn = new Button("✕");
+        closeBtn.getStyleClass().addAll("titlebar-btn", "titlebar-close");
+        closeBtn.setOnAction(e -> {
+            childStages.remove(stage); // Remove da lista ao fechar
+            stage.close();
+        });
+
+        titleBar.getChildren().addAll(windowTitle, spacer, closeBtn);
+
+        // Lógica para arrastar a janela
+        final double[] xOffset = {0};
+        final double[] yOffset = {0};
+        titleBar.setOnMousePressed(event -> {
+            xOffset[0] = event.getSceneX();
+            yOffset[0] = event.getSceneY();
+        });
+        titleBar.setOnMouseDragged(event -> {
+            stage.setX(event.getScreenX() - xOffset[0]);
+            stage.setY(event.getScreenY() - yOffset[0]);
+        });
+
+        // --- 3. Conteúdo da Janela ---
         VBox content = new VBox(10);
-        content.getStyleClass().add("notification-content");
+        content.getStyleClass().add("notification-content"); // Fundo controlado pelo CSS
         content.setAlignment(Pos.TOP_CENTER);
         content.setPadding(new Insets(15));
 
-        Label title = new Label("Historico de Alteracoes");
-        title.getStyleClass().add("notification-title");
-        content.getChildren().add(title);
+        // Título interno
+        Label mainTitle = new Label("📋 Histórico de Alterações");
+        mainTitle.getStyleClass().add("notification-title");
+        content.getChildren().add(mainTitle);
+        content.getChildren().add(new Separator());
 
-        Separator separator = new Separator();
-        content.getChildren().add(separator);
+        // --- ÁREA DE FILTROS ---
+        VBox filtrosContainer = new VBox(10);
+        filtrosContainer.setAlignment(Pos.CENTER);
 
-        HBox filterBox = new HBox(10);
-        filterBox.setAlignment(Pos.CENTER);
+        HBox filterBox1 = new HBox(10);
+        filterBox1.setAlignment(Pos.CENTER);
 
-        ComboBox<String> tipoFiltro = new ComboBox<>();
-        tipoFiltro.getItems().addAll("Todas", "CRIAR", "EDITAR", "EXCLUIR");
-        tipoFiltro.setValue("Todas");
-        tipoFiltro.setPrefWidth(120);
+        // Labels agora usam classe CSS (para ficarem pretos no tema claro)
+        Label lblOp = new Label("Operação:"); lblOp.getStyleClass().add("label");
+        Label lblEnt = new Label("Entidade:"); lblEnt.getStyleClass().add("label");
 
-        ComboBox<String> entidadeFiltro = new ComboBox<>();
-        entidadeFiltro.getItems().addAll("Todas", "LOTE", "FORNECEDOR");
-        entidadeFiltro.setValue("Todas");
-        entidadeFiltro.setPrefWidth(150);
+        ComboBox<String> tipoFiltro = new ComboBox<>(); tipoFiltro.getItems().addAll("Todas", "CRIAR", "EDITAR", "EXCLUIR"); tipoFiltro.setValue("Todas");
+        ComboBox<String> entidadeFiltro = new ComboBox<>(); entidadeFiltro.getItems().addAll("Todas", "LOTE", "FORNECEDOR"); entidadeFiltro.setValue("Todas");
 
-        Button aplicarFiltro = new Button("Aplicar Filtro");
-        aplicarFiltro.getStyleClass().addAll("button", "primary-color");
+        filterBox1.getChildren().addAll(lblOp, tipoFiltro, lblEnt, entidadeFiltro);
 
-        filterBox.getChildren().addAll(
-                new Label("Operacao:"), tipoFiltro,
-                new Label("Entidade:"), entidadeFiltro,
-                aplicarFiltro
-        );
-        content.getChildren().add(filterBox);
+        HBox filterBox2 = new HBox(10);
+        filterBox2.setAlignment(Pos.CENTER);
 
-        Separator separator2 = new Separator();
-        content.getChildren().add(separator2);
+        Label lblDe = new Label("De:"); lblDe.getStyleClass().add("label");
+        Label lblAte = new Label("Até:"); lblAte.getStyleClass().add("label");
 
+        DatePicker dataInicio = new DatePicker(); dataInicio.setPromptText("Data Inicial");
+        DatePicker dataFim = new DatePicker(); dataFim.setPromptText("Data Final");
+
+        Button aplicarFiltro = new Button("Filtrar"); aplicarFiltro.getStyleClass().addAll("button", "primary-color");
+        Button btnExportar = new Button("Exportar CSV"); btnExportar.getStyleClass().addAll("button", "secondary-color");
+
+        filterBox2.getChildren().addAll(lblDe, dataInicio, lblAte, dataFim, aplicarFiltro, btnExportar);
+
+        filtrosContainer.getChildren().addAll(filterBox1, filterBox2);
+        content.getChildren().add(filtrosContainer);
+        content.getChildren().add(new Separator());
+
+        // --- LISTA DE LOGS ---
         VBox logsContainer = new VBox(5);
         logsContainer.setAlignment(Pos.TOP_CENTER);
+        List<LogEntry> logsVisualizados = new java.util.ArrayList<>();
 
         Runnable atualizarLogs = () -> {
             logsContainer.getChildren().clear();
-
+            logsVisualizados.clear();
             try {
                 List<LogEntry> logs = logDAO.listarTodos();
-
                 List<LogEntry> logsFiltrados = logs.stream()
                         .filter(log -> {
                             boolean tipoMatch = tipoFiltro.getValue().equals("Todas") || log.getTipoOperacao().equals(tipoFiltro.getValue());
                             boolean entidadeMatch = entidadeFiltro.getValue().equals("Todas") || log.getEntidade().equals(entidadeFiltro.getValue());
-                            return tipoMatch && entidadeMatch;
-                        })
-                        .sorted((l1, l2) -> l2.getDataHora().compareTo(l1.getDataHora()))
-                        .collect(Collectors.toList());
+                            boolean dataMatch = true;
+                            if (dataInicio.getValue() != null) dataMatch = dataMatch && !log.getDataHora().toLocalDate().isBefore(dataInicio.getValue());
+                            if (dataFim.getValue() != null) dataMatch = dataMatch && !log.getDataHora().toLocalDate().isAfter(dataFim.getValue());
+                            return tipoMatch && entidadeMatch && dataMatch;
+                        }).sorted((l1, l2) -> l2.getDataHora().compareTo(l1.getDataHora())).collect(Collectors.toList());
+
+                logsVisualizados.addAll(logsFiltrados);
 
                 if (logsFiltrados.isEmpty()) {
                     Label emptyLabel = new Label("Nenhum registro encontrado.");
-                    emptyLabel.getStyleClass().add("alert-label");
+                    emptyLabel.getStyleClass().add("alert-label"); // Usa classe CSS
                     logsContainer.getChildren().add(emptyLabel);
                 } else {
                     for (LogEntry log : logsFiltrados) {
                         VBox logBox = new VBox(3);
+                        // IMPORTANTE: Removemos o setStyle manual e usamos a classe
                         logBox.getStyleClass().add("alert-container");
-                        logBox.setPadding(new Insets(10));
 
                         HBox header = new HBox(10);
                         header.setAlignment(Pos.CENTER_LEFT);
 
                         Label tipoLabel = new Label(getIconeOperacao(log.getTipoOperacao()) + " " + log.getTipoOperacao());
-                        tipoLabel.getStyleClass().add("text-color");
+                        tipoLabel.getStyleClass().add("text-color"); // Cor dinâmica
+                        tipoLabel.setStyle("-fx-font-weight: bold;");
 
                         Label dataLabel = new Label(log.getDataHora().format(dateTimeFormatter));
                         dataLabel.getStyleClass().add("gray-text");
@@ -892,7 +953,7 @@ public class Controller {
 
                         Label descricaoLabel = new Label(log.getDescricao());
                         descricaoLabel.setWrapText(true);
-                        descricaoLabel.getStyleClass().add("alert-label");
+                        descricaoLabel.getStyleClass().add("alert-label"); // Cor dinâmica (branco/preto)
 
                         Label usuarioLabel = new Label("Por: " + log.getUsuarioResponsavel());
                         usuarioLabel.getStyleClass().add("gray-text");
@@ -901,24 +962,59 @@ public class Controller {
                         logsContainer.getChildren().add(logBox);
                     }
                 }
-            } catch (SQLException e) {
-                mostrarAlerta("Erro", "Erro ao carregar logs: " + e.getMessage());
-                e.printStackTrace();
-            }
+            } catch (SQLException e) { mostrarAlerta("Erro", e.getMessage()); }
         };
+
+        btnExportar.setOnAction(e -> {
+            if (logsVisualizados.isEmpty()) mostrarAlerta("Aviso", "Sem dados.");
+            else exportarParaCSV(logsVisualizados, stage);
+        });
 
         aplicarFiltro.setOnAction(e -> atualizarLogs.run());
         atualizarLogs.run();
 
         content.getChildren().add(logsContainer);
 
+        // ScrollPane
         ScrollPane scrollPane = new ScrollPane(content);
         scrollPane.setFitToWidth(true);
-        scrollPane.getStyleClass().add("notification-scroll");
-        scrollPane.setFocusTraversable(false);
+        scrollPane.getStyleClass().add("notification-scroll"); // Fundo controlado pelo CSS
 
-        // USA O NOVO MÉTODO PARA CRIAR JANELA CUSTOMIZADA
-        Stage stage = createCustomStage("Historico de Alteracoes", scrollPane, 800, 600);
+        // --- 4. Montagem Final ---
+        VBox root = new VBox(titleBar, scrollPane);
+
+        // Adiciona classes para bordas e sombras (definidas no CSS .border-pane ou similar)
+        // Criamos um StackPane para aplicar o clip arredondado corretamente
+        StackPane windowRoot = new StackPane(root);
+        windowRoot.setStyle("-fx-background-color: transparent;");
+
+        // Aplica o estilo de fundo da janela (controlado pelo CSS .border-pane)
+        root.getStyleClass().add("border-pane");
+        // Remove padding extra do border-pane se necessário, ou ajusta margin
+        root.setStyle("-fx-background-radius: 12; -fx-border-radius: 12;");
+
+        Scene scene = new Scene(windowRoot, 850, 650);
+        scene.setFill(javafx.scene.paint.Color.TRANSPARENT);
+
+        // --- 5. IMPORTANTE: Carrega o CSS correto baseado no tema atual ---
+        if (isDarkTheme) {
+            scene.getStylesheets().add(getClass().getResource("styles.css").toExternalForm());
+        } else {
+            scene.getStylesheets().add(getClass().getResource("styles-light.css").toExternalForm());
+        }
+
+        // Clip para arredondar a janela
+        javafx.scene.shape.Rectangle clip = new javafx.scene.shape.Rectangle();
+        clip.setArcWidth(24);
+        clip.setArcHeight(24);
+        clip.widthProperty().bind(scene.widthProperty());
+        clip.heightProperty().bind(scene.heightProperty());
+        windowRoot.setClip(clip);
+
+        stage.setScene(scene);
+
+        childStages.add(stage);
+
         stage.show();
     }
 
@@ -2052,5 +2148,42 @@ public class Controller {
 
         Stage stage = createCustomStage("Alertas de Estoque", scrollPane, 700, totalHeight);
         stage.show();
+    }
+    private void exportarParaCSV(List<LogEntry> logs, javafx.stage.Window window) {
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle("Salvar Relatório CSV");
+        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Arquivos CSV (*.csv)", "*.csv"));
+        fileChooser.setInitialFileName("relatorio_historico_" + LocalDate.now() + ".csv");
+
+        File file = fileChooser.showSaveDialog(window);
+
+        if (file != null) {
+            try (PrintWriter writer = new PrintWriter(file, StandardCharsets.UTF_8)) {
+                // Escreve o cabeçalho (BOM para o Excel reconhecer UTF-8 corretamente)
+                writer.write('\ufeff');
+                writer.println("ID;Data/Hora;Operação;Entidade;Descrição;Usuário");
+
+                // Escreve os dados
+                for (LogEntry log : logs) {
+                    writer.printf("%d;%s;%s;%s;%s;%s%n",
+                            log.getIdLog(),
+                            log.getDataHora().format(dateTimeFormatter),
+                            log.getTipoOperacao(),
+                            log.getEntidade(),
+                            // Remove quebras de linha e ponto e vírgula da descrição para não quebrar o CSV
+                            log.getDescricao().replace(";", ",").replace("\n", " "),
+                            log.getUsuarioResponsavel()
+                    );
+                }
+
+                Alert alert = new Alert(Alert.AlertType.INFORMATION, "Relatório exportado com sucesso!");
+                alert.setTitle("Sucesso");
+                alert.showAndWait();
+
+            } catch (IOException ex) {
+                mostrarAlerta("Erro", "Falha ao salvar o arquivo: " + ex.getMessage());
+                ex.printStackTrace();
+            }
+        }
     }
 }
